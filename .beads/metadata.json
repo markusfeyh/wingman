@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "wingman",
+  "project_id": "17511a7a-e637-465d-9e69-bfe89f5a9553"
+}
