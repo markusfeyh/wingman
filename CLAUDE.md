@@ -60,18 +60,24 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+uv sync
+docker start wingman-falkordb          # FalkorDB on :6379 (Colima locally)
+uv run pytest -q                       # unit tests + graph queries on a scratch graph
+uv run python -m wingman.cli serve     # API + web app on :8000
+uv run python -m wingman.cli --help    # prep, enrich, rank, card, ask, recap, demo, ...
 ```
 
 ## Architecture Overview
 
-_Add a brief overview of your project architecture_
+Wingman is a conference copilot. Plan: `docs/PLAN.md`; API contract: `docs/API.md`; web app notes: `web/NOTES.md`.
+
+- `wingman/`: Python 3.12 FastAPI backend. `graph.py` (FalkorDB schema + Cypher), `events.py` (conference import), `brightdata.py` + `github.py` + `enrich.py` (enrichment, cached in `data/cache/`), `resolver.py` (who is this?), `cards.py` + `llm.py` (Claude cards), `live.py` (live transcript, nudges), `recap.py`, `api.py`, `cli.py`.
+- `web/`: no-build PWA (plain HTML/CSS/ES modules) for iPhone.
+- Deploy: one Fly.io machine running FalkorDB and the app (`Dockerfile`, `start.sh`, `fly.toml`).
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+- Never commit `.env` or `data/` (secrets, scraped data, graph dump).
+- Card bullets must cite a fact from the graph; uncertain person matches go through the pick step and must never look confirmed.
+- UX work on `web/`: use the Impeccable skill (`/impeccable <command>`). Product context lives in `PRODUCT.md` and the visual system in `DESIGN.md` once written.

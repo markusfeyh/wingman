@@ -2,7 +2,7 @@
 
 A conference copilot. Before the event it loads the speakers and works out who is worth meeting. During the event, a badge photo, a LinkedIn QR code, a voice note, or a name heard in conversation brings up a card: what you have in common, what to ask, and how the person fits your goals. After the event it gives you who you met, what you promised, and draft follow-ups.
 
-Built on **FalkorDB** (graph + vector search), **Bright Data** (Google search, LinkedIn profiles, page fetches), and **Claude** (badge reading, extraction, cards, recaps). The plan is in `../PLAN.md`; the API contract is in `docs/API.md`.
+Built on **FalkorDB** (graph + vector search), **Bright Data** (Google search, LinkedIn profiles, page fetches), and **Claude** (badge reading, extraction, cards, recaps). The plan is in `docs/PLAN.md`; the API contract is in `docs/API.md`.
 
 ## Setup (once)
 

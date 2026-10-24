@@ -1,5 +1,5 @@
 .env
-data/
+/data/
 .venv/
 __pycache__/
 .pytest_cache/
@@ -11,3 +11,6 @@ __pycache__/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Impeccable engine binary (re-downloaded on first run)
+.claude/skills/impeccable/scripts/bin/
