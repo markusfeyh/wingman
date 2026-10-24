@@ -41,8 +41,8 @@ async def build_card(pid: str, encounter_id: str | None = None) -> dict | None:
     ev = event_config()
     facts: list[dict] = []
 
-    def add(text, source, url=None):
-        facts.append({"text": text, "source": source, "url": url})
+    def add(text, source, url=None, via=None):
+        facts.append({"text": text, "source": source, "url": url, "via": via})
 
     if p.get("headline"):
         add(f"{p.get('name')}: {p['headline']}", "profile")
@@ -55,8 +55,12 @@ async def build_card(pid: str, encounter_id: str | None = None) -> dict | None:
     if bits["topics"]:
         add(f"Interested in {', '.join(bits['topics'][:10])}", "profile")
     for f in await graph.person_facts(pid):
-        add(f["text"], f["source"] or "profile", f.get("url"))
-    for c in await graph.common_ground(pid):
+        add(f["text"], f["source"] or "profile", f.get("url"), f.get("via"))
+    async with hub.step("falkordb", "FalkorDB", "Find common ground",
+                        "shared employers, schools, topics and contacts: Cypher paths + vector search") as st:
+        common = await graph.common_ground(pid)
+        st.result = f"{len(common)} connection{'' if len(common) == 1 else 's'}"
+    for c in common:
         add(c["text"], c["source"])
     prev = await graph.previous_encounters(pid, exclude=encounter_id)
     for e in prev:
@@ -71,7 +75,7 @@ async def build_card(pid: str, encounter_id: str | None = None) -> dict | None:
     card = {"person": _person_view(p), "status": "full" if p.get("enriched") == "full" else "quick",
             "common_ground": [], "ask_about": [], "goal_fit": [], "heads_up": [], "sessions": sessions,
             "previous_encounters": [{"id": e["id"], "at": iso(e["at"]), "summary": e.get("summary")} for e in prev],
-            "generated_at": iso(graph.now_ms())}
+            "retrieved": json.loads(p.get("bd_sources") or "[]"), "generated_at": iso(graph.now_ms())}
     draft = await llm.write_card(await me_context(), p, facts, ev.get("name", "the conference")) if facts else None
     if draft:
         for key in ("common_ground", "ask_about", "goal_fit"):
@@ -80,7 +84,8 @@ async def build_card(pid: str, encounter_id: str | None = None) -> dict | None:
                 if not ids:
                     continue  # unsupported claim: drop it
                 src = facts[ids[0]]
-                card[key].append({"text": item.text, "source": src["source"], "url": src["url"]})
+                card[key].append({"text": item.text, "source": src["source"], "url": src["url"],
+                                  "via": next((facts[i]["via"] for i in ids if facts[i]["via"]), None)})
         card["heads_up"] = draft.heads_up[:2]
     elif facts:
         card["heads_up"] = ["Talking points unavailable right now (Claude call failed); showing basics."]
@@ -95,7 +100,7 @@ async def get_card(pid: str) -> dict | None:
     if pid in _jobs and not _jobs[pid].done() and not p.get("card_json"):
         return {"person": _person_view(p), "status": "pending", "common_ground": [], "ask_about": [],
                 "goal_fit": [], "heads_up": [], "sessions": await graph.person_sessions(pid),
-                "previous_encounters": [], "generated_at": None}
+                "previous_encounters": [], "retrieved": [], "generated_at": None}
     if p.get("card_json"):
         card = json.loads(p["card_json"])
         card["person"] = _person_view(p)
@@ -124,9 +129,10 @@ async def _card_job(pid: str, encounter_id: str | None, force: bool) -> None:
         card = await build_card(pid, encounter_id)
         if card:
             hub.publish("card", {"person_id": pid, "encounter_id": encounter_id, "card": card})
-    # 2) full card after scraping LinkedIn (30-60 s)
+    # 2) full card after scraping LinkedIn, news and their own site (30-60 s)
     p = await graph.get_person(pid) or {}
     if p.get("enriched") != "full" and p.get("linkedin_url") and brightdata.enabled():
+        hub.publish("enrich", {"person_id": pid, "status": "running"})
         level = await enrich.enrich_person(pid, scrape=True)
         hub.publish("enrich", {"person_id": pid, "status": level if level in ("quick", "full") else "failed"})
         if level == "full":
@@ -141,10 +147,12 @@ async def _card_job(pid: str, encounter_id: str | None, force: bool) -> None:
 async def rank_shortlist(limit: int = 30) -> int:
     me = await me_context()
     people = await graph.rows(
+        # aggregate in WITH first: FalkorDB treats a map containing collect() as one group (a single row)
         "MATCH (p:Person {is_speaker:true}) OPTIONAL MATCH (p)-[:INTERESTED_IN]->(t:Topic) "
+        "WITH p, collect(DISTINCT t.name)[0..8] AS topics "
         "OPTIONAL MATCH (p)-[:HAS_FACT]->(f:Fact {kind:'hook'}) "
-        "RETURN {id:p.id, name:p.name, title:p.title, company:p.company, "
-        "topics:collect(DISTINCT t.name)[0..8], hooks:collect(DISTINCT f.text)[0..2]}")
+        "WITH p, topics, collect(DISTINCT f.text)[0..2] AS hooks "
+        "RETURN {id:p.id, name:p.name, title:p.title, company:p.company, topics:topics, hooks:hooks}")
     if not people:
         return 0
     # cheap pre-score: topic similarity to goals + direct common ground

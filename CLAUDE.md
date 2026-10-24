@@ -74,6 +74,8 @@ Wingman is a conference copilot. Plan: `docs/PLAN.md`; API contract: `docs/API.m
 
 - `wingman/`: Python 3.12 FastAPI backend. `graph.py` (FalkorDB schema + Cypher), `events.py` (conference import), `brightdata.py` + `github.py` + `enrich.py` (enrichment, cached in `data/cache/`), `resolver.py` (who is this?), `cards.py` + `llm.py` (Claude cards), `live.py` (live transcript, nudges), `recap.py`, `api.py`, `cli.py`.
 - `web/`: no-build PWA (plain HTML/CSS/ES modules) for iPhone.
+- `llm.py` talks to Claude or OpenAI (structured outputs either way); `hub.step()` publishes each pipeline step as an SSE `trace` event.
+- `demo/` + `wingman/fixtures.py` + `wingman/demo.py`: a recorded demo with synthetic data (fixture replay); see `demo/README.md`.
 - Deploy: one Fly.io machine running FalkorDB and the app (`Dockerfile`, `start.sh`, `fly.toml`).
 
 ## Conventions & Patterns

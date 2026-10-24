@@ -1,0 +1,131 @@
+{
+  "_comment": "Synthetic Bright Data responses for the demo. Every person, company, site and article here is fictional. Latency ranges are in seconds and shortened from real-world values (a live LinkedIn scrape can take 30-60 s).",
+  "latency": {
+    "people": [0.2, 0.35],
+    "serp": [0.9, 1.3],
+    "page": [1.2, 1.6],
+    "linkedin": [4.6, 5.2],
+    "batch": [1.0, 1.2]
+  },
+  "people": [
+    {
+      "name": "Maya Okafor",
+      "url": "https://www.linkedin.com/in/maya-okafor-tessellate",
+      "current_title": "Principal Engineer, Agent Reliability",
+      "current_company_name": "Tessellate AI",
+      "location": "San Francisco Bay Area",
+      "about": "I build evaluation and reliability tooling for coding agents. Before Tessellate I was on Stripe's ML platform team.",
+      "past_company_names": ["Stripe", "Microsoft"]
+    },
+    {
+      "name": "Maya Okafor",
+      "url": "https://www.linkedin.com/in/mayaokafor-design",
+      "current_title": "Senior Product Designer",
+      "current_company_name": "Lumio",
+      "location": "Brooklyn, New York",
+      "about": "Product designer working on onboarding and growth.",
+      "past_company_names": ["Etsy"]
+    },
+    {
+      "name": "Maya Okafor",
+      "url": "https://www.linkedin.com/in/maya-okafor-analytics",
+      "current_title": "Data Analyst",
+      "current_company_name": "Brightwell Health",
+      "location": "Chicago, Illinois",
+      "about": "Healthcare analytics.",
+      "past_company_names": []
+    }
+  ],
+  "serp": [
+    {
+      "match": ["tessellate ai", "tbm=nws"],
+      "results": [
+        {"title": "Tessellate AI raises $40M Series B to make coding agents reliable", "link": "https://devwire.news/2026/10/tessellate-ai-series-b", "description": "The San Francisco startup says its agents now open 4,000 pull requests a week across customer repositories, and evaluation has become the bottleneck.", "source": "DevWire", "date": "Oct 16, 2026"},
+        {"title": "Tessellate AI open-sources Tidepool, a replay harness for agent PRs", "link": "https://thestackreport.com/2026/10/tessellate-tidepool", "description": "Tidepool replays an agent's changes against a recorded copy of the repository before anything merges.", "source": "The Stack Report", "date": "Oct 21, 2026"},
+        {"title": "Agent reliability is 2026's busiest infrastructure category", "link": "https://infraweekly.io/2026/10/agent-reliability", "description": "Startups including Tessellate AI are racing to make agent-written code safe to merge.", "source": "Infra Weekly", "date": "Oct 2, 2026"}
+      ]
+    },
+    {
+      "match": ["maya okafor", "-site:linkedin.com"],
+      "results": [
+        {"title": "Replay testing for coding agents | Maya Okafor", "link": "https://mayaokafor.dev/blog/replay-testing-agents", "description": "How we judge every agent-written pull request against a recorded repo before it merges, and what it caught in the first month."},
+        {"title": "mokafor (Maya Okafor) · GitHub", "link": "https://github.com/mokafor", "description": "Agent reliability at Tessellate AI. Maintainer of Tidepool."},
+        {"title": "Merge gates for agent PRs: Maya Okafor at AgentConf 2026", "link": "https://www.youtube.com/watch?v=tidepool-demo", "description": "Talk recording, 28 minutes."}
+      ]
+    },
+    {
+      "match": ["\"maya okafor\" -site:linkedin.com"],
+      "absent": ["tessellate"],
+      "results": [
+        {"title": "Replay testing for coding agents | Maya Okafor", "link": "https://mayaokafor.dev/blog/replay-testing-agents", "description": "How we judge every agent-written pull request against a recorded repo before it merges."}
+      ]
+    },
+    {
+      "match": ["maya okafor", "site:linkedin.com/in"],
+      "results": [
+        {"title": "Maya Okafor - Principal Engineer, Agent Reliability - Tessellate AI | LinkedIn", "link": "https://www.linkedin.com/in/maya-okafor-tessellate", "description": "San Francisco Bay Area · Principal Engineer at Tessellate AI · Building evaluation and reliability tooling for coding agents. Previously ML Platform at Stripe."},
+        {"title": "Maya Okafor - Senior Product Designer - Lumio | LinkedIn", "link": "https://www.linkedin.com/in/mayaokafor-design", "description": "Brooklyn, New York · Product designer at Lumio."}
+      ]
+    }
+  ],
+  "pages": {
+    "https://mayaokafor.dev/blog/replay-testing-agents": "# Replay testing for coding agents\n\n*Maya Okafor · October 8, 2026*\n\nOur agents open about 4,000 pull requests a week across customer repositories. Unit tests catch some regressions, but most agent mistakes are about context: a migration that works on a clean database and fails on production data, or a refactor that passes CI and breaks a downstream service.\n\nSo every agent PR now runs against a **recorded repo**: a snapshot of the repository, its services and a sample of real traffic. We replay the change, diff the behavior, and only then does the PR reach a human.\n\n## What it caught in the first month\n\n- 312 PRs that passed CI but changed behavior on recorded traffic\n- 41 migrations that would have locked a hot table\n- 9 changes that silently dropped an error path\n\n## What's next\n\nWe open-sourced the harness as **Tidepool**. The hard part now is evaluation at scale: deciding which behavior diffs matter. If you're working on agent evals, I'd love to compare notes.\n"
+  },
+  "linkedin": {
+    "https://www.linkedin.com/in/maya-okafor-tessellate": {
+      "id": "maya-okafor-tessellate",
+      "name": "Maya Okafor",
+      "position": "Principal Engineer, Agent Reliability at Tessellate AI",
+      "about": "I build evaluation and reliability tooling for coding agents: replay harnesses, flaky-test triage and merge gates for agent-written PRs. Before Tessellate I spent five years on Stripe's ML platform team. Weekends: bouldering.",
+      "city": "San Francisco Bay Area",
+      "country_code": "US",
+      "current_company": {"name": "Tessellate AI", "title": "Principal Engineer, Agent Reliability"},
+      "current_company_name": "Tessellate AI",
+      "experience": [
+        {"title": "Principal Engineer, Agent Reliability", "company": "Tessellate AI", "start_date": "Mar 2024", "end_date": "Present"},
+        {"title": "Staff Engineer, ML Platform", "company": "Stripe", "start_date": "2019", "end_date": "2024"},
+        {"title": "Software Engineer", "company": "Microsoft", "start_date": "2015", "end_date": "2019"}
+      ],
+      "education": [{"title": "Carnegie Mellon University", "degree": "BS, Computer Science"}],
+      "posts": [
+        {"title": "We just open-sourced Tidepool: a replay harness that tests coding agents against recorded repos before their PRs merge. 1.2k stars in the first week.", "link": "https://www.linkedin.com/posts/maya-okafor-tessellate_tidepool-open-source", "date": "2026-10-21"},
+        {"title": "We're hiring engineers who love GPU scheduling. Our eval workloads doubled this quarter.", "link": "https://www.linkedin.com/posts/maya-okafor-tessellate_hiring-gpu-scheduling", "date": "2026-10-12"},
+        {"title": "Talk recap: why agent PRs need a different merge gate than human PRs.", "link": "https://www.linkedin.com/posts/maya-okafor-tessellate_merge-gates", "date": "2026-09-30"}
+      ],
+      "followers": 2400,
+      "connections": 500,
+      "avatar": null,
+      "default_avatar": true
+    },
+    "https://www.linkedin.com/in/priya-natarajan-copperline": {
+      "name": "Priya Natarajan", "position": "VP Engineering at Copperline", "city": "San Francisco Bay Area",
+      "about": "Engineering leader at Copperline. Coding agents now write a third of our merged code; I care a lot about how we review it.",
+      "current_company_name": "Copperline",
+      "posts": [{"title": "A third of our merged code is now agent-written. Here's how our review process changed.", "link": "https://www.linkedin.com/posts/priya-natarajan-copperline_agents-review", "date": "2026-10-14"}]
+    },
+    "https://www.linkedin.com/in/daniel-reyes-driftwood": {
+      "name": "Daniel Reyes", "position": "Founder & CEO at Driftwood Labs", "city": "Oakland, California",
+      "about": "Building review tooling for teams that merge agent-written pull requests.",
+      "current_company_name": "Driftwood Labs",
+      "posts": [{"title": "Driftwood Labs is out of beta. 10,000 agent PRs reviewed and counting.", "link": "https://www.linkedin.com/posts/daniel-reyes-driftwood_launch", "date": "2026-10-19"}]
+    },
+    "https://www.linkedin.com/in/hannah-lindqvist-polargrid": {
+      "name": "Hannah Lindqvist", "position": "Staff ML Infrastructure Engineer at Polar Grid", "city": "Seattle, Washington",
+      "about": "GPU scheduling and evaluation infrastructure. Open to conversations about ML infra roles in the Bay Area.",
+      "current_company_name": "Polar Grid",
+      "posts": [{"title": "Our eval cluster now schedules 40,000 GPU-hours a week. Slides from my talk are coming.", "link": "https://www.linkedin.com/posts/hannah-lindqvist-polargrid_gpu", "date": "2026-10-09"}]
+    },
+    "https://www.linkedin.com/in/aiko-tanaka-kestrel": {
+      "name": "Aiko Tanaka", "position": "Engineering Manager, Edge Platform at Kestrel Payments", "city": "San Francisco Bay Area",
+      "about": "Rust, payments, and platform teams. Previously API infrastructure at Stripe.",
+      "current_company_name": "Kestrel Payments",
+      "posts": [{"title": "We moved our edge proxy to Rust and cut p99 latency by 38%.", "link": "https://www.linkedin.com/posts/aiko-tanaka-kestrel_rust", "date": "2026-10-03"}]
+    },
+    "https://www.linkedin.com/in/leo-moreau-fernhill": {
+      "name": "Leo Moreau", "position": "Developer Advocate at Fernhill", "city": "Montreal, Quebec",
+      "about": "Helping teams run coding agents inside CI.",
+      "current_company_name": "Fernhill",
+      "posts": [{"title": "New guide: running coding agents as CI steps, with guardrails.", "link": "https://www.linkedin.com/posts/leo-moreau-fernhill_ci", "date": "2026-10-17"}]
+    }
+  }
+}

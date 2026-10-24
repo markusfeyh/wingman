@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Synthetic badge photo</title>
+<style>
+  @font-face { font-family: "Instrument Sans"; src: url("fonts/instrument-sans.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; width: 900px; height: 1200px; overflow: hidden; }
+  /* a photo of a badge on a lanyard, taken at an angle in mixed indoor light */
+  body {
+    background:
+      radial-gradient(500px 420px at 70% 30%, rgba(255, 214, 170, 0.20), rgba(0, 0, 0, 0) 70%),
+      radial-gradient(900px 700px at 40% 80%, #3a3f48 0%, #23262c 60%, #17191d 100%);
+    font-family: "Instrument Sans", sans-serif;
+  }
+  .lanyard { position: absolute; left: 418px; top: -40px; width: 64px; height: 230px; background: linear-gradient(90deg, #161b26, #222a3a 50%, #161b26); transform: rotate(-3deg); transform-origin: top; }
+  .clip { position: absolute; left: 424px; top: 170px; width: 52px; height: 60px; border-radius: 10px; background: linear-gradient(#c9ccd1, #8f949b); transform: rotate(-3deg); box-shadow: 0 4px 10px rgba(0,0,0,.4); }
+  .badge {
+    position: absolute; left: 150px; top: 215px; width: 600px; height: 840px; border-radius: 26px; overflow: hidden;
+    background: #f7f6f2; transform: rotate(-3deg) skewY(0.6deg);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), 0 8px 18px rgba(0, 0, 0, 0.35);
+  }
+  .hole { position: absolute; left: 270px; top: 28px; width: 60px; height: 16px; border-radius: 8px; background: #2a2d33; }
+  .band { height: 230px; padding: 84px 48px 0; background: #14171c; color: #f7f6f2; }
+  .band .ev { font-size: 30px; font-weight: 650; letter-spacing: -0.01em; }
+  .band .when { margin-top: 8px; font-size: 21px; color: #b9bfc8; }
+  .who { padding: 70px 48px 0; color: #14171c; }
+  .name { font-size: 76px; line-height: 0.98; font-weight: 700; letter-spacing: -0.035em; }
+  .title { margin-top: 30px; font-size: 30px; font-weight: 500; color: #3b4048; }
+  .company { margin-top: 8px; font-size: 38px; font-weight: 650; letter-spacing: -0.01em; }
+  .foot { position: absolute; left: 0; right: 0; bottom: 0; height: 96px; display: flex; align-items: center; padding: 0 48px; background: #e6e3da; color: #14171c; font-size: 24px; font-weight: 650; letter-spacing: 0.14em; }
+  /* glare + slight softness, as in a quick phone shot */
+  .glare { position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.18) 48%, rgba(255,255,255,0) 60%); }
+</style>
+</head>
+<body>
+  <div class="lanyard"></div>
+  <div class="badge">
+    <div class="hole"></div>
+    <div class="band"><div class="ev">GitHub Universe 2026</div><div class="when">Fort Mason, San Francisco</div></div>
+    <div class="who">
+      <div class="name" id="name">Maya<br>Okafor</div>
+      <div class="title" id="title">Principal Engineer</div>
+      <div class="company" id="company">Tessellate AI</div>
+    </div>
+    <div class="foot">ATTENDEE</div>
+    <div class="glare"></div>
+  </div>
+  <div class="clip"></div>
+  <script>
+    // ?name=Maya%20Okafor&company=Tessellate%20AI&title= (an empty title hides the line)
+    const q = new URLSearchParams(location.search);
+    if (q.has("name")) {
+      const [first, ...rest] = q.get("name").split(" ");
+      const n = document.getElementById("name");
+      n.textContent = first; n.append(document.createElement("br"), rest.join(" "));
+    }
+    if (q.has("company")) document.getElementById("company").textContent = q.get("company");
+    if (q.has("title")) {
+      const t = document.getElementById("title");
+      t.textContent = q.get("title"); t.hidden = !q.get("title");
+    }
+  </script>
+</body>
+</html>

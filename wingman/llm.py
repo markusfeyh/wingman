@@ -6,14 +6,17 @@ import logging
 from typing import Literal, TypeVar
 
 import anthropic
+import openai
 from pydantic import BaseModel
 
+from . import fixtures, hub
 from .config import settings
 
 log = logging.getLogger("wingman.llm")
 T = TypeVar("T", bound=BaseModel)
 
 _client: anthropic.AsyncAnthropic | None = None
+_oai: openai.AsyncOpenAI | None = None
 
 SENSITIVE = ("Never mention or infer health, religion, politics, sexuality, ethnicity, family status, age, "
              "or appearance.")
@@ -27,9 +30,58 @@ def client() -> anthropic.AsyncAnthropic:
     return _client
 
 
+def oai() -> openai.AsyncOpenAI:
+    global _oai
+    if _oai is None:
+        _oai = openai.AsyncOpenAI(api_key=settings().openai_api_key or None)
+    return _oai
+
+
+def provider() -> str:
+    s = settings()
+    if s.wingman_llm in ("anthropic", "openai"):
+        return s.wingman_llm
+    if fixtures.active() or s.anthropic_api_key or not s.openai_api_key:
+        return "anthropic"
+    return "openai"
+
+
+def model_for(live: bool) -> str:
+    s = settings()
+    if provider() == "openai":
+        return s.wingman_openai_model_live if live else s.wingman_openai_model_recap
+    return s.wingman_model_live if live else s.wingman_model_recap
+
+
+def label(model: str | None = None) -> str:
+    """claude-opus-5-5 -> Claude Opus 5.5; gpt-5.5 -> OpenAI GPT-5.5"""
+    model = model or model_for(True)
+    if model.startswith("claude-"):
+        parts = model.removeprefix("claude-").split("-")
+        return f"Claude {parts[0].title()} {'.'.join(parts[1:])}".strip()
+    return f"OpenAI {model.replace('gpt-', 'GPT-')}"
+
+
+def _model_label(model: str) -> str:
+    return label(model)
+
+
 async def _parse(schema: type[T], system: str, content, *, live: bool = True, effort: str = "low",
-                 max_tokens: int = 8000) -> T | None:
-    model = settings().wingman_model_live if live else settings().wingman_model_recap
+                 max_tokens: int = 8000, label: str | None = None, detail: str = "") -> T | None:
+    model = model_for(live)
+    if not label:
+        return await _call(schema, system, content, model, effort, max_tokens)
+    async with hub.step("llm", _model_label(model), label, detail) as st:
+        out = await _call(schema, system, content, model, effort, max_tokens)
+        st.result = "ok" if out else "no result"
+    return out
+
+
+async def _call(schema: type[T], system: str, content, model: str, effort: str, max_tokens: int) -> T | None:
+    if fixtures.active():
+        return await fixtures.claude(schema, system, content)
+    if provider() == "openai":
+        return await _call_openai(schema, system, content, model, effort, max_tokens)
     try:
         resp = await client().beta.messages.parse(
             model=model,
@@ -56,6 +108,29 @@ async def _parse(schema: type[T], system: str, content, *, live: bool = True, ef
     return resp.parsed_output
 
 
+async def _call_openai(schema: type[T], system: str, content, model: str, effort: str,
+                       max_tokens: int) -> T | None:
+    """Same contract as the Claude path: a validated Pydantic object or None (structured outputs)."""
+    blocks = [{"type": "text", "text": content}] if isinstance(content, str) else content
+    parts = []
+    for b in blocks:
+        if b.get("type") == "text":
+            parts.append({"type": "input_text", "text": b["text"]})
+        elif b.get("type") == "image":
+            src = b["source"]
+            parts.append({"type": "input_image", "image_url": f"data:{src['media_type']};base64,{src['data']}"})
+    try:
+        resp = await oai().responses.parse(model=model, instructions=system, text_format=schema,
+                                           input=[{"role": "user", "content": parts}],
+                                           reasoning={"effort": effort}, max_output_tokens=max_tokens, store=False)
+    except openai.APIError as e:
+        log.error("openai call failed (%s): %s", schema.__name__, e)
+        return None
+    if resp.output_parsed is None:
+        log.warning("openai returned no parsed output for %s (status %s)", schema.__name__, resp.status)
+    return resp.output_parsed
+
+
 # ---------- badge / note / live ----------
 
 class BadgeRead(BaseModel):
@@ -74,7 +149,8 @@ async def read_badge(jpeg: bytes) -> BadgeRead | None:
                                  "business card, or screen. Use null for anything not visible. raw_text: all "
                                  "legible text, one line."},
     ]
-    return await _parse(BadgeRead, "You read conference badges precisely. Do not guess missing text.", content)
+    return await _parse(BadgeRead, "You read conference badges precisely. Do not guess missing text.", content,
+                        label="Read badge photo", detail="name, company and title from the image")
 
 
 class Intro(BaseModel):
@@ -92,7 +168,7 @@ async def parse_note(note: str, current_person: str | None) -> NoteParse | None:
               "user just met (e.g. 'just met Priya Shah from Stripe'). If it is about the person they are "
               "already talking to, or names nobody new, return new_person=null.")
     ctx = f"Current conversation partner: {current_person or 'none'}\n\nNote: {note}"
-    return await _parse(NoteParse, system, ctx)
+    return await _parse(NoteParse, system, ctx, label="Read voice note", detail=note[:120])
 
 
 class Nudge(BaseModel):
@@ -120,7 +196,8 @@ async def live_detect(transcript: str, me: dict, partner: str | None, partner_co
     ctx = (f"User: {me.get('name')}. Goals: {json.dumps(me.get('goals', []))}\n"
            f"Talking to: {partner or 'unknown'}\n{partner_context}\n"
            f"Recent nudges: {json.dumps(recent_nudges)}\n\nTranscript (oldest first):\n{transcript}")
-    return await _parse(LiveDetect, system, ctx)
+    return await _parse(LiveDetect, system, ctx, label="Follow the conversation",
+                        detail="introductions, topics, and a nudge if something matches your goals")
 
 
 # ---------- profile extraction ----------
@@ -149,7 +226,7 @@ class PersonFacts(BaseModel):
     hooks: list[Hook]
 
 
-async def extract_person(name: str, sources: str) -> PersonFacts | None:
+async def extract_person(name: str, sources: str, labels: str = "") -> PersonFacts | None:
     system = (
         "Extract conversation-ready facts about one person from the sources (conference bio, LinkedIn "
         "profile JSON, search results). Rules:\n"
@@ -162,8 +239,10 @@ async def extract_person(name: str, sources: str) -> PersonFacts | None:
         "- hooks: 0-6 specific, recent, positive things worth asking about (a talk, a post, a launch, a "
         "project, a job change). One sentence each, with the source label (e.g. 'LinkedIn post', 'speaker "
         "bio', 'GitHub') and URL/date if given.\n"
-        "Only use what the sources say. " + SENSITIVE)
-    return await _parse(PersonFacts, system, f"Person: {name}\n\nSources:\n{sources}", effort="low")
+        "Only use what the sources say. Web results and news can be about other people with the same name: use "
+        "one only if it clearly matches this person (same employer, school, city or field). " + SENSITIVE)
+    return await _parse(PersonFacts, system, f"Person: {name}\n\nSources:\n{sources}", effort="low",
+                        label="Extract facts", detail=f"{name}, from {labels or 'profile'}")
 
 
 # ---------- card ----------
@@ -186,7 +265,9 @@ async def write_card(me: dict, person: dict, facts: list[dict], event_name: str)
         "You write a card the user glances at for five seconds before or during a conversation at a "
         "conference. Use ONLY the numbered facts and cite their numbers in fact_ids; an item without a "
         "supporting fact must not exist.\n"
-        "- common_ground: up to 3 genuine overlaps between the user and this person, strongest first.\n"
+        "- common_ground: up to 3 concrete overlaps the facts state directly (a shared employer, school, city, "
+        "topic or contact, or an interest marked as close to the user's), strongest first. Never generalize or "
+        "infer an overlap; fewer is better, and empty is fine.\n"
         "- ask_about: up to 2 warm, specific questions or openers tied to something recent or distinctive.\n"
         "- goal_fit: up to 2 ways this person relates to the user's goals; empty if none.\n"
         "- heads_up: up to 2 short cautions (thin or possibly stale data, open promises, previous meetings).\n"
@@ -196,7 +277,8 @@ async def write_card(me: dict, person: dict, facts: list[dict], event_name: str)
            f"User goals: {json.dumps(me.get('goals', []))}\n"
            f"Person: {person.get('name')} — {person.get('title') or ''} at {person.get('company') or ''}\n\n"
            f"Facts:\n{numbered}")
-    return await _parse(CardDraft, system, ctx)
+    return await _parse(CardDraft, system, ctx, label="Write card",
+                        detail=f"{person.get('name')}: {len(facts)} facts, every line must cite one")
 
 
 # ---------- shortlist ----------
@@ -217,7 +299,8 @@ async def rank_people(me: dict, people: list[dict], limit: int) -> Shortlist | N
               "overlap or goal it serves. Only use the given data.")
     ctx = (f"User: {me.get('name')} — {me.get('about') or ''}\nGoals: {json.dumps(me.get('goals', []))}\n\n"
            f"People (JSON lines):\n" + "\n".join(json.dumps(p, ensure_ascii=False) for p in people))
-    return await _parse(Shortlist, system, ctx, live=False, effort="medium", max_tokens=16000)
+    return await _parse(Shortlist, system, ctx, live=False, effort="medium", max_tokens=16000,
+                        label="Rank who's worth meeting", detail=f"{len(people)} people against your goals")
 
 
 # ---------- recap ----------
@@ -242,16 +325,19 @@ async def recap(me: dict, person: dict | None, notes: list[str], transcript: str
     system = (
         "Summarize one conference conversation for the user and pull out commitments. Speaker numbers in "
         "the transcript come from automatic diarization; infer who is the user from context (the user's "
-        "voice notes are authoritative). action_items: concrete promises or next steps; owner 'me' if the "
-        "user committed, 'them' if the other person did; due as YYYY-MM-DD only if a time was said "
-        f"(the conversation was on {date}); quote: the exact supporting words. summary: 2-3 sentences. "
+        "voice notes are authoritative). Write to the user as 'you' and never use the user's name. "
+        "action_items: concrete promises or next steps in imperative form ('Send Priya the deck'); owner 'me' if "
+        "the user committed, 'them' if the other person did; due as YYYY-MM-DD only for an explicit day or date "
+        f"('tomorrow', 'Friday', 'Nov 3'; the conversation was on {date}), otherwise null; quote: the exact "
+        "supporting words. summary: 2-3 sentences. "
         "follow_up: a short, warm, specific message from the user to send today referencing what was "
         "discussed and any promise; email if they shared email or it's business, else linkedin. " + SENSITIVE)
     who = f"{person.get('name')} — {person.get('title') or ''} at {person.get('company') or ''}" if person else "unknown"
     ctx = (f"Event: {event_name}\nUser: {me.get('name')}\nGoals: {json.dumps(me.get('goals', []))}\n"
            f"Other person: {who}\n\nUser's voice notes:\n" + ("\n".join(f"- {n}" for n in notes) or "(none)") +
            f"\n\nTranscript:\n{transcript or '(none)'}")
-    return await _parse(RecapOut, system, ctx, live=False, effort="medium", max_tokens=12000)
+    return await _parse(RecapOut, system, ctx, live=False, effort="medium", max_tokens=12000,
+                        label="Recap conversation", detail=f"{person.get('name') if person else 'unknown'}: summary, promises, follow-up")
 
 
 # ---------- ask ----------

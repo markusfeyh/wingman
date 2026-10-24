@@ -2,7 +2,7 @@
 
 A conference copilot. Before the event it loads the speakers and works out who is worth meeting. During the event, a badge photo, a LinkedIn QR code, a voice note, or a name heard in conversation brings up a card: what you have in common, what to ask, and how the person fits your goals. After the event it gives you who you met, what you promised, and draft follow-ups.
 
-Built on **FalkorDB** (graph + vector search), **Bright Data** (Google search, LinkedIn profiles, page fetches), and **Claude** (badge reading, extraction, cards, recaps). The plan is in `docs/PLAN.md`; the API contract is in `docs/API.md`.
+Built on **FalkorDB** (graph + vector search), **Bright Data** (people lookup, Google search, LinkedIn profiles and company pages, page fetches), and **Claude** or **OpenAI** (badge reading, extraction, cards, recaps; set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`). The plan is in `docs/PLAN.md`; the API contract is in `docs/API.md`.
 
 ## Setup (once)
 
@@ -60,6 +60,10 @@ On the iPhone, open the URL in Safari, choose Share → Add to Home Screen, open
 - Prompts tell Claude not to mention or infer sensitive traits. There is no face recognition.
 - Data lives in your FalkorDB only.
 - Bright Data collects public profile data only.
+
+## Demo video
+
+`demo/README.md` records a 90-second happy-path video with synthetic people; it needs no keys (`uv run --with playwright python demo/record.py`).
 
 ## Phase 0 (no app)
 

@@ -1,8 +1,10 @@
 """Fan-out of server-sent events to open app tabs, with web push as the fallback when none are open."""
 
 import asyncio
+import itertools
 import json
 import logging
+import time
 
 from .config import settings
 
@@ -10,6 +12,7 @@ log = logging.getLogger("wingman.hub")
 
 _subscribers: set[asyncio.Queue] = set()
 _tasks: set[asyncio.Task] = set()
+_trace_ids = itertools.count(1)
 
 
 def subscribe() -> asyncio.Queue:
@@ -31,6 +34,40 @@ def publish(event: str, data: dict, push_text: str | None = None) -> None:
             pass
     if push_text and not _subscribers:
         spawn(asyncio.to_thread(_push_all, push_text))
+
+
+class step:
+    """Publish a pipeline step as SSE `trace` events (start, then done/error with duration), so the app can
+    show what's happening behind a card: which Bright Data product was called, what Claude did, etc.
+
+        async with hub.step("brightdata", "SERP API", "Google search", query) as s:
+            results = ...
+            s.result = f"{len(results)} results"
+    """
+
+    def __init__(self, service: str, product: str, action: str, detail: str = "", **meta):
+        self.id = f"t{next(_trace_ids)}"
+        self.base = {"id": self.id, "service": service, "product": product, "action": action,
+                     "detail": detail[:300], **meta}
+        self.result: str | None = None
+
+    async def __aenter__(self):
+        self.t0 = time.monotonic()
+        publish("trace", self.base | {"state": "start"})
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        ms = int((time.monotonic() - self.t0) * 1000)
+        state = "error" if exc_type else "done"
+        result = str(exc)[:160] if exc_type else self.result
+        publish("trace", self.base | {"state": state, "ms": ms, "result": result})
+        return False
+
+
+def note(service: str, product: str, action: str, detail: str = "", result: str | None = None, **meta) -> None:
+    """A one-shot trace row (a decision rather than a call), e.g. the resolver confirming a match."""
+    publish("trace", {"id": f"t{next(_trace_ids)}", "service": service, "product": product, "action": action,
+                      "detail": detail[:300], "state": "done", "result": result, **meta})
 
 
 def spawn(coro) -> asyncio.Task:

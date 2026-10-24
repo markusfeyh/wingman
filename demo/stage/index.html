@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Wingman demo stage</title>
+  <link rel="stylesheet" href="stage.css">
+  <script type="module" src="stage.js"></script>
+</head>
+<body>
+  <!-- Opening title -->
+  <section id="title" class="title-card" aria-hidden="false">
+    <h1>Wingman</h1>
+    <p class="title-line">Know who you're talking to before you say hello.</p>
+    <p class="title-sub" id="title-sub">Bright Data finds the people you meet. FalkorDB connects them to you. Claude writes the card.</p>
+  </section>
+
+  <!-- Main stage -->
+  <main id="stage" class="stage">
+    <div class="phone-col">
+      <div class="phone" id="phone">
+        <div class="screen">
+          <div class="statusbar" aria-hidden="true">
+            <span class="clock">9:41</span>
+            <span class="island"></span>
+            <span class="sys">
+              <svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0L8 11.5zM3.4 6.8a6.6 6.6 0 0 1 9.2 0l-1.1 1.1a5 5 0 0 0-7 0L3.4 6.8zM1.2 4.6a9.7 9.7 0 0 1 13.6 0l-1.1 1.1a8.1 8.1 0 0 0-11.4 0L1.2 4.6z"/></svg>
+              <svg viewBox="0 0 27 12"><rect x="0.5" y="0.5" width="23" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="18" height="8" rx="2"/><rect x="24.5" y="4" width="2" height="4" rx="1" opacity=".45"/></svg>
+            </span>
+          </div>
+          <iframe id="app" src="/" title="Wingman app"></iframe>
+        </div>
+      </div>
+      <div id="dictation" class="dictation" hidden>
+        <span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span>Wispr Flow is listening…</span>
+      </div>
+    </div>
+
+    <div class="info-col">
+      <div class="caption" id="caption">
+        <h2 id="cap-h"></h2>
+        <p id="cap-p"></p>
+      </div>
+
+      <!-- Closing summary (replaces caption + trace at the end) -->
+      <section id="outro" class="outro" hidden>
+        <h2 id="outro-h"></h2>
+        <ul id="outro-list" class="outro-list"></ul>
+        <p id="outro-times" class="outro-times"></p>
+        <p class="outro-foot">Wingman · built on Bright Data, FalkorDB and Claude</p>
+      </section>
+
+      <section class="trace" id="trace" aria-label="Behind the card">
+        <header class="trace-head">
+          <h3>Behind the card</h3>
+          <span class="bd-count" id="bd-count"><b>0</b> Bright Data calls</span>
+        </header>
+        <ol id="trace-list" class="trace-list"></ol>
+      </section>
+    </div>
+  </main>
+
+
+  <footer class="disclaimer" id="disclaimer">Synthetic people and companies. Bright Data and Claude responses are replayed from fixtures; timings are shortened.</footer>
+  <div id="ff" class="ff" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5v11l7.5-5.5L4 6.5zM12.5 6.5v11l7.5-5.5-7.5-5.5z"/></svg><span id="ff-label">Sped up 4×</span></div>
+  <div id="taps" class="taps" aria-hidden="true"></div>
+</body>
+</html>

@@ -14,3 +14,8 @@ __pycache__/
 
 # Impeccable engine binary (re-downloaded on first run)
 .claude/skills/impeccable/scripts/bin/
+
+# demo recordings: per-run data and output videos
+demo/.data/
+demo/.data-live/
+demo/out/

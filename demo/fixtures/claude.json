@@ -1,0 +1,189 @@
+{
+  "_comment": "Synthetic Claude responses for the demo, chosen by schema + match/absent strings. Card items cite facts by text (cite); fixtures.py maps them to the numbered facts in the real prompt, so an item whose fact isn't there is dropped like a real uncited claim. {{date+N}} is today + N days.",
+  "latency": {
+    "default": [0.8, 1.1],
+    "BadgeRead": [1.1, 1.3],
+    "PersonFacts": [1.0, 1.3],
+    "CardDraft": [1.0, 1.3],
+    "LiveDetect": [0.6, 0.8],
+    "NoteParse": [0.5, 0.7],
+    "RecapOut": [2.0, 2.4],
+    "Shortlist": [0.6, 0.8]
+  },
+  "responses": [
+    {
+      "schema": "BadgeRead",
+      "response": {"kind": "badge", "name": "Maya Okafor", "company": "Tessellate AI", "title": "Principal Engineer",
+                   "raw_text": "GitHub Universe 2026 · Maya Okafor · Principal Engineer · Tessellate AI · Attendee"}
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Sam Carter"],
+      "response": {
+        "headline": "Head of Platform Engineering at Quillstack", "current_title": "Head of Platform Engineering",
+        "current_company": "Quillstack", "city": "San Francisco",
+        "roles": [
+          {"org": "Quillstack", "title": "Head of Platform Engineering", "current": true},
+          {"org": "Stripe", "title": "ML Platform Engineer", "current": false},
+          {"org": "Dropbox", "title": "Infrastructure Engineer", "current": false}
+        ],
+        "schools": ["University of Michigan"],
+        "topics": ["llm evaluation", "coding agents", "developer experience", "platform engineering", "rust", "bouldering"],
+        "hooks": []
+      }
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Maya Okafor", "LinkedIn profile JSON"],
+      "response": {
+        "headline": "Principal Engineer, Agent Reliability at Tessellate AI",
+        "current_title": "Principal Engineer, Agent Reliability", "current_company": "Tessellate AI", "city": "San Francisco",
+        "roles": [
+          {"org": "Tessellate AI", "title": "Principal Engineer, Agent Reliability", "current": true},
+          {"org": "Stripe", "title": "Staff Engineer, ML Platform", "current": false},
+          {"org": "Microsoft", "title": "Software Engineer", "current": false}
+        ],
+        "schools": ["Carnegie Mellon University"],
+        "topics": ["coding agents", "agent reliability", "llm evaluation", "replay testing", "gpu scheduling", "bouldering"],
+        "hooks": [
+          {"text": "Open-sourced Tidepool, a replay harness that tests coding agents against recorded repos; 1.2k stars in its first week",
+           "source": "LinkedIn post", "url": "https://www.linkedin.com/posts/maya-okafor-tessellate_tidepool-open-source", "date": "2026-10-21"},
+          {"text": "Tessellate AI raised a $40M Series B; its agents now open 4,000 pull requests a week",
+           "source": "DevWire", "url": "https://devwire.news/2026/10/tessellate-ai-series-b", "date": "2026-10-16"},
+          {"text": "Hiring engineers for GPU scheduling; their eval workloads doubled this quarter",
+           "source": "LinkedIn post", "url": "https://www.linkedin.com/posts/maya-okafor-tessellate_hiring-gpu-scheduling", "date": "2026-10-12"},
+          {"text": "Wrote 'Replay testing for coding agents': every agent PR runs against a recorded repo before review",
+           "source": "mayaokafor.dev", "url": "https://mayaokafor.dev/blog/replay-testing-agents", "date": "2026-10-08"}
+        ]
+      }
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Maya Okafor"],
+      "response": {
+        "headline": "Principal Engineer, Agent Reliability at Tessellate AI",
+        "current_title": "Principal Engineer, Agent Reliability", "current_company": "Tessellate AI", "city": "San Francisco",
+        "roles": [
+          {"org": "Tessellate AI", "title": "Principal Engineer, Agent Reliability", "current": true},
+          {"org": "Stripe", "title": null, "current": false},
+          {"org": "Microsoft", "title": null, "current": false}
+        ],
+        "schools": [],
+        "topics": ["coding agents", "agent reliability", "llm evaluation"],
+        "hooks": []
+      }
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Priya Natarajan"],
+      "response": {"headline": "VP Engineering at Copperline", "current_title": "VP Engineering", "current_company": "Copperline", "city": "San Francisco",
+        "roles": [{"org": "Copperline", "title": "VP Engineering", "current": true}], "schools": [],
+        "topics": ["coding agents", "code review", "llm evaluation", "payments"],
+        "hooks": [{"text": "Coding agents now write a third of Copperline's merged code", "source": "LinkedIn post", "url": "https://www.linkedin.com/posts/priya-natarajan-copperline_agents-review", "date": "2026-10-14"}]}
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Daniel Reyes"],
+      "response": {"headline": "Founder & CEO at Driftwood Labs", "current_title": "Founder & CEO", "current_company": "Driftwood Labs", "city": "Oakland",
+        "roles": [{"org": "Driftwood Labs", "title": "Founder & CEO", "current": true}], "schools": [],
+        "topics": ["developer tools", "code review", "coding agents", "startups"],
+        "hooks": [{"text": "Driftwood Labs came out of beta after reviewing 10,000 agent PRs", "source": "LinkedIn post", "url": "https://www.linkedin.com/posts/daniel-reyes-driftwood_launch", "date": "2026-10-19"}]}
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Hannah Lindqvist"],
+      "response": {"headline": "Staff ML Infrastructure Engineer at Polar Grid", "current_title": "Staff ML Infrastructure Engineer", "current_company": "Polar Grid", "city": "Seattle",
+        "roles": [{"org": "Polar Grid", "title": "Staff ML Infrastructure Engineer", "current": true}], "schools": [],
+        "topics": ["ml infrastructure", "gpu scheduling", "kubernetes", "llm evaluation"],
+        "hooks": [{"text": "Her eval cluster schedules 40,000 GPU-hours a week", "source": "LinkedIn post", "url": "https://www.linkedin.com/posts/hannah-lindqvist-polargrid_gpu", "date": "2026-10-09"}]}
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Aiko Tanaka"],
+      "response": {"headline": "Engineering Manager, Edge Platform at Kestrel Payments", "current_title": "Engineering Manager", "current_company": "Kestrel Payments", "city": "San Francisco",
+        "roles": [{"org": "Kestrel Payments", "title": "Engineering Manager", "current": true}, {"org": "Stripe", "title": "API Infrastructure", "current": false}], "schools": [],
+        "topics": ["rust", "payments", "platform engineering"],
+        "hooks": [{"text": "Moved Kestrel's edge proxy to Rust and cut p99 latency by 38%", "source": "LinkedIn post", "url": "https://www.linkedin.com/posts/aiko-tanaka-kestrel_rust", "date": "2026-10-03"}]}
+    },
+    {
+      "schema": "PersonFacts", "match": ["Person: Leo Moreau"],
+      "response": {"headline": "Developer Advocate at Fernhill", "current_title": "Developer Advocate", "current_company": "Fernhill", "city": "Montreal",
+        "roles": [{"org": "Fernhill", "title": "Developer Advocate", "current": true}], "schools": [],
+        "topics": ["ci/cd", "coding agents", "developer experience"],
+        "hooks": [{"text": "Published a guide to running coding agents as CI steps", "source": "LinkedIn post", "url": "https://www.linkedin.com/posts/leo-moreau-fernhill_ci", "date": "2026-10-17"}]}
+    },
+    {
+      "schema": "CardDraft", "match": ["Person: Maya Okafor", "LinkedIn not fetched yet"],
+      "response": {
+        "common_ground": [
+          {"text": "You're both Stripe alumni", "cite": ["worked at Stripe"]},
+          {"text": "Your contact Jordan Kim works at Tessellate AI", "cite": ["Jordan Kim"]},
+          {"text": "You both work on LLM evaluation", "cite": ["care about llm evaluation"]}
+        ],
+        "ask_about": [
+          {"text": "Ask what agent reliability covers at Tessellate AI", "cite": ["Agent Reliability"]}
+        ],
+        "goal_fit": [],
+        "heads_up": ["Quick card from Bright Data's people index. LinkedIn, news and web are loading."]
+      }
+    },
+    {
+      "schema": "CardDraft", "match": ["Person: Maya Okafor"],
+      "response": {
+        "common_ground": [
+          {"text": "You're both Stripe alumni", "cite": ["worked at Stripe"]},
+          {"text": "Your contact Jordan Kim works at Tessellate AI", "cite": ["Jordan Kim"]},
+          {"text": "You both boulder", "cite": ["care about bouldering"]}
+        ],
+        "ask_about": [
+          {"text": "Ask how Tidepool replays agent PRs against recorded repos", "cite": ["Tidepool"]},
+          {"text": "Ask about her post on replay testing for coding agents", "cite": ["Replay testing for coding agents"]}
+        ],
+        "goal_fit": [
+          {"text": "Their agents open 4,000 PRs a week: a strong design partner for your eval harness", "cite": ["4,000 pull requests"]},
+          {"text": "Fresh $40M Series B: good timing to propose a pilot", "cite": ["Series B"]}
+        ],
+        "heads_up": []
+      }
+    },
+    {
+      "schema": "CardDraft",
+      "response": {
+        "common_ground": [{"text": "You share an interest in coding agents", "cite": ["care about coding agents"]}],
+        "ask_about": [{"text": "Ask about their talk this week", "cite": ["Speaking at"]}],
+        "goal_fit": [], "heads_up": []
+      }
+    },
+    {
+      "schema": "Shortlist",
+      "response": {"items": [
+        {"person_id": "li:priya-natarajan-copperline", "score": 0.92, "why": "Runs coding agents in production: design-partner fit"},
+        {"person_id": "li:hannah-lindqvist-polargrid", "score": 0.88, "why": "Staff ML infra engineer: matches your hiring goal"},
+        {"person_id": "li:daniel-reyes-driftwood", "score": 0.84, "why": "Founder building review tools for coding agents"},
+        {"person_id": "li:aiko-tanaka-kestrel", "score": 0.71, "why": "Fellow Stripe alum doing Rust platform work"},
+        {"person_id": "li:leo-moreau-fernhill", "score": 0.63, "why": "Runs agents in CI, so likely needs evals"}
+      ]}
+    },
+    {
+      "schema": "LiveDetect", "match": ["design partners"],
+      "response": {"introductions": [], "topics": ["llm evaluation", "coding agents", "design partners"],
+                   "nudge": {"text": "Design-partner fit: 4,000 agent PRs a week. Offer a two-week pilot.", "kind": "goal"}}
+    },
+    {
+      "schema": "LiveDetect",
+      "response": {"introductions": [], "topics": ["coding agents"], "nudge": null}
+    },
+    {
+      "schema": "NoteParse",
+      "response": {"new_person": null}
+    },
+    {
+      "schema": "RecapOut", "match": ["Maya Okafor"],
+      "response": {
+        "summary": "Met Maya Okafor, who runs agent reliability at Tessellate AI and just open-sourced Tidepool. Their agents open about 4,000 PRs a week and evaluation is the bottleneck, so she wants to pilot your eval harness as a design partner.",
+        "topics": ["llm evaluation", "coding agents", "design partners", "gpu scheduling"],
+        "action_items": [
+          {"text": "Send Maya the eval harness deck and pricing", "owner": "me", "due": "{{date+1}}", "quote": "I'll send you the deck tomorrow morning."},
+          {"text": "Introduce Maya to a GPU scheduling engineer", "owner": "me", "due": null, "quote": "I'll make an intro this week."},
+          {"text": "Ask Jordan Kim for a warm intro to Tessellate's CTO", "owner": "me", "due": null, "quote": "Ask Jordan for a warm intro to their CTO."},
+          {"text": "Review the eval harness write-up", "owner": "them", "due": null, "quote": "We'd be interested. Can you send me a short write-up?"}
+        ],
+        "follow_up_channel": "email",
+        "follow_up": "Hi Maya, great meeting you at GitHub Universe, and congrats again on Tidepool. As promised, here's our eval harness deck with pricing. At 4,000 agent PRs a week, a two-week pilot should show quickly what replay-based evals catch. I'll also introduce you to a GPU scheduling engineer I know this week. Best, Sam"
+      }
+    }
+  ]
+}

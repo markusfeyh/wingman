@@ -67,6 +67,16 @@ def _norm(name: str) -> str:
     return re.sub(r"[^a-z ]+", "", (name or "").lower()).strip()
 
 
+def same_person(said: str, partner: str) -> bool:
+    """'Maya' or 'Maya Okafor' said by the person you're already talking to (Maya Okafor) is not a new intro."""
+    s, p = _norm(said).split(), _norm(partner).split()
+    if not s or not p:
+        return False
+    if len(s) == 1:
+        return s[0] == p[0]
+    return resolver.name_score(said, partner) > 0.7
+
+
 class ListenSession:
     """Single user, so one rolling transcript."""
 
@@ -93,6 +103,7 @@ class ListenSession:
         try:
             cur = await graph.current_encounter(max_age_min=30)
             await graph.add_chunk(text, speaker, at_ms, cur["id"] if cur else None)
+            hub.note("falkordb", "FalkorDB", "Save transcript line", text[:120], "saved")
         except Exception:
             log.exception("could not store transcript chunk")
         self.lines.append((at_ms, speaker, text))
@@ -135,7 +146,7 @@ class ListenSession:
             if resolver.name_score(name, my_name) > 0.8 or (my_first and key == my_first):
                 return  # the user introducing themselves
             enc, partner = await self._partner()
-            if partner and resolver.name_score(name, partner.get("name") or "") > 0.7:
+            if partner and same_person(name, partner.get("name") or ""):
                 self.recent_intros[key] = now
                 return  # already talking to them
             if enc and not partner and enc.get("status") in ("needs_pick", "resolving") \
@@ -199,6 +210,7 @@ class ListenSession:
                     self.nudges.append(out.nudge.text)
                     hub.publish("nudge", {"encounter_id": eid, "text": out.nudge.text, "kind": out.nudge.kind},
                                 push_text=out.nudge.text)
+                    hub.note("llm", llm.label(), "Live nudge", out.nudge.text, out.nudge.kind)
             if eid and out.topics:
                 for t in out.topics[:5]:
                     tid = graph.slug(t).replace("-", " ")

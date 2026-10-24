@@ -10,6 +10,7 @@
   recap           summarize a day's conversations                                 [--date YYYY-MM-DD]
   serve           run the API + web app                                           [--host] [--port]
   vapid           generate web-push keys to paste into .env
+  demo-seed       load the synthetic demo world (fixture mode only, see demo/README.md)
   demo [SCRIPT]   play a scripted conversation into a running server (maya | reset)
                                                                                   [--speed 2] [--url URL]
 """
@@ -79,6 +80,9 @@ def main() -> None:
         elif c == "ask":
             from .api import Ask, ask
             print((await ask(Ask(question=args.arg)))["answer"])
+        elif c == "demo-seed":
+            from . import demo
+            print(await demo.seed())
         elif c == "recap":
             from . import recap
             print("encounters:", await recap.run(args.date))

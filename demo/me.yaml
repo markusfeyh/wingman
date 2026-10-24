@@ -1,0 +1,14 @@
+# Synthetic demo user. Every person and company in demo/ is fictional.
+name: Sam Carter
+linkedin_url: ""
+about: >-
+  Head of Platform Engineering at Quillstack, where we build an evaluation harness for coding agents.
+  Previously ML platform at Stripe and infrastructure at Dropbox. University of Michigan, computer science.
+  Based in San Francisco. Into LLM evaluation, developer experience, Rust and bouldering.
+goals:
+  - Find two design partners for our agent evaluation harness
+  - Hire senior ML infrastructure engineers
+  - Meet founders building developer tools for coding agents
+known_people:
+  - name: Jordan Kim
+    companies: [Tessellate AI, Dropbox]

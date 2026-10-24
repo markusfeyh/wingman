@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from pydantic import BaseModel
 
-from . import cards, graph, hub, live, llm, recap, resolver
+from . import cards, fixtures, graph, hub, live, llm, recap, resolver
 from .config import ROOT, event_config, me_config, save_me_config, settings
 
 log = logging.getLogger("wingman.api")
@@ -77,7 +77,8 @@ async def me():
     p = await graph.get_person(graph.ME) or {}
     return {"name": m.get("name"), "headline": p.get("headline"), "goals": m.get("goals") or [],
             "event": {"id": ev.get("id"), "name": ev.get("name"), "dates": ev.get("dates")} if ev else None,
-            "listen_mode": live.listen_mode(), "push_public_key": settings().vapid_public_key or None}
+            "listen_mode": "demo" if fixtures.active() or settings().wingman_demo_script else live.listen_mode(),
+            "push_public_key": settings().vapid_public_key or None}
 
 
 # ---------- capture ----------
@@ -392,6 +393,10 @@ async def healthz():
 from . import demo  # noqa: E402  (hackathon demo routes: /api/demo/*)
 
 app.include_router(demo.router)
+
+# Fixture demo only: the recording stage (phone frame + live pipeline trace), see demo/README.md.
+if (fixtures.active() or settings().wingman_demo_script) and (ROOT / "demo" / "stage").is_dir():
+    app.mount("/stage", StaticFiles(directory=ROOT / "demo" / "stage", html=True), name="stage")
 
 # Web app last, so /api routes win.
 _web = ROOT / "web"

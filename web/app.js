@@ -1,6 +1,6 @@
 import {
   api, AuthError, NetError, onUnauthorized, html, raw, setHTML, safeUrl, avatar, roleLine,
-  fmtTime, fmtDayTime, fmtDay, localDateStr, debounce, downscaleImage, urlBase64ToUint8Array,
+  fmtTime, fmtDayTime, fmtDay, localDateStr, debounce, downscaleImage, urlBase64ToUint8Array, icon,
 } from "./lib.js";
 import { Listener } from "./listen.js";
 
@@ -23,14 +23,17 @@ const state = {
   noteBind: null,       // { encounterId, name }
   sseOk: false,
   pollTimer: null,
+  enriching: new Set(), // person ids with a Bright Data lookup in flight (full card coming)
+  demoListen: false,    // fixture demo: Listen plays a scripted conversation from the server
 };
 
 // ---------------------------------------------------------------- toasts
 
-function toast(text, { kind = "info", action = null, timeout = 6000 } = {}) {
+function toast(text, { kind = "info", action = null, timeout = 6000, iconName = null } = {}) {
   const box = $("toasts");
   const el = document.createElement("div");
   el.className = `toast ${kind}`;
+  if (iconName) setHTML(el, icon(iconName, "icon toast-ico"));
   const span = document.createElement("span");
   span.className = "grow";
   span.textContent = text;
@@ -125,9 +128,21 @@ window.addEventListener("hashchange", routeFromHash);
 function factList(items) {
   return html`<ul>${items.map((f) => {
     const url = safeUrl(f.url);
-    const src = f.source ? (url ? html` <span class="src">· <a href="${url}" target="_blank" rel="noopener">${f.source}</a></span>` : html` <span class="src">· ${f.source}</span>`) : "";
-    return html`<li>${f.text}${src}</li>`;
+    const label = f.source === "graph" ? "your graph" : f.source;
+    const src = label ? (url ? html` <span class="src">· <a href="${url}" target="_blank" rel="noopener">${label}</a></span>` : html` <span class="src">· ${label}</span>`) : "";
+    const via = f.via ? html` <span class="via" title="Retrieved with Bright Data ${f.via}">Bright Data</span>` : "";
+    return html`<li>${f.text}${src}${via}</li>`;
   })}</ul>`;
+}
+
+// What Bright Data retrieved for this card, so every claim can be traced to a source.
+function retrievedList(items) {
+  if (!items || !items.length) return "";
+  return html`<div class="sec sources"><div class="sec-t">Retrieved with Bright Data</div>
+    <ul>${items.map((r) => {
+      const url = safeUrl(r.url);
+      return html`<li><span class="bd-product">${r.product}</span>${url ? html`<a href="${url}" target="_blank" rel="noopener">${r.label}</a>` : r.label}</li>`;
+    })}</ul></div>`;
 }
 
 function section(title, items) {
@@ -183,9 +198,11 @@ function renderCard(card, person, ctx) {
     ${section("Ask about", card && card.ask_about)}
     ${section("Fits your goals", card && card.goal_fit)}
     ${empty ? html`<div class="sec muted small">Nothing in common found yet. ${p.headline ? html`Headline: ${p.headline}` : ""}</div>` : ""}
-    ${heads.length ? html`<div class="heads">${heads.map((h) => html`<div>⚠️ ${h}</div>`)}</div>` : ""}
+    ${state.enriching.has(p.id) && status !== "full" ? html`<div class="enriching"><span class="spinner sm" aria-hidden="true"></span>Getting their LinkedIn, news and own site via Bright Data…</div>` : ""}
+    ${heads.length ? html`<div class="heads">${heads.map((h) => html`<div>${icon("alert")}<span>${h}</span></div>`)}</div>` : ""}
     ${sessions.length ? html`<div class="sec"><div class="sec-t">Their sessions</div><ul>${sessions.map((s) => html`<li>${s.title}${s.start ? html` <span class="src">· ${fmtDayTime(s.start)}${s.room ? ` · ${s.room}` : ""}</span>` : ""}</li>`)}</ul></div>` : ""}
     ${prev.length ? html`<div class="sec"><div class="sec-t">Met before</div><ul>${prev.map((m) => html`<li>${fmtDay(m.at)}${m.summary ? html` · ${m.summary}` : ""}</li>`)}</ul></div>` : ""}
+    ${pending ? "" : retrievedList(card && card.retrieved)}
     ${actions}
   </article>`;
 }
@@ -494,13 +511,31 @@ function renderTranscript() {
   setHTML("transcript", lines);
 }
 
-$("listen-toggle").addEventListener("change", (e) => {
+// Fixture demo (listen_mode "demo"): no mic. The server plays a scripted conversation and its lines arrive
+// as SSE `transcript` events through the same live pipeline.
+function setDemoListen(on) {
+  state.demoListen = on;
+  $("listen-toggle").checked = on;
+  $("listen-card").classList.toggle("on", on);
+  $("rec-dot").hidden = !on;
+  $("transcript").hidden = !on;
+  $("listen-status").textContent = on ? "Listening" : "Off";
+}
+
+$("listen-toggle").addEventListener("change", async (e) => {
   if (e.target.checked) {
     if (!state.me) { e.target.checked = false; toast("Not connected to the server yet.", { kind: "warn" }); return; }
     state.transcript = []; state.interim = "";
     renderTranscript();
     $("transcript").hidden = false;
+    if (state.me.listen_mode === "demo") {
+      setDemoListen(true);
+      try { await api("/api/demo/play", { method: "POST", body: {} }); } catch (err) { toast(errText(err), { kind: "error" }); setDemoListen(false); }
+      return;
+    }
     listener.start(state.me.listen_mode);
+  } else if (state.demoListen) {
+    setDemoListen(false);
   } else {
     listener.stop();
     $("transcript").hidden = true;
@@ -667,7 +702,8 @@ $("recap-run").addEventListener("click", async () => {
   btn.textContent = "Running…";
   try {
     const r = await api("/api/recap/run", { method: "POST", body: { date: recapDate.value || localDateStr() }, timeout: 240000 });
-    toast(`Recap done: ${r && r.encounters != null ? r.encounters : 0} conversations`, { kind: "ok" });
+    const n = r && r.encounters != null ? r.encounters : 0;
+    toast(`Recap done: ${n} conversation${n === 1 ? "" : "s"}`, { kind: "ok" });
     await loadRecap();
   } catch (e) {
     if (!(e instanceof AuthError)) toast(`Recap failed: ${errText(e)}`, { kind: "error" });
@@ -990,11 +1026,21 @@ function connectSSE() {
   on("resolution", (res) => handleResolution(res, { fromLive: true }));
   on("card", (d) => { if (d && d.card) applyCard(d.person_id, d.card, d.encounter_id); });
   on("nudge", (d) => {
-    const icon = { intro: "🤝", goal: "🎯", topic: "💡", reminder: "⏰" }[d.kind] || "💡";
-    toast(`${icon} ${d.text}`, { kind: "info", timeout: 9000 });
+    toast(d.text, { kind: "nudge", timeout: 9000, iconName: d.kind || "topic" });
     if (navigator.vibrate) navigator.vibrate(80);
   });
+  on("transcript", (d) => {
+    if (!d.demo || !d.is_final) return;
+    if (!state.demoListen) setDemoListen(true);
+    state.transcript.push({ text: d.text, speaker: d.speaker });
+    if (state.transcript.length > 3) state.transcript.splice(0, state.transcript.length - 3);
+    renderTranscript();
+  });
   on("enrich", (d) => {
+    if (d.status === "running") state.enriching.add(d.person_id);
+    else state.enriching.delete(d.person_id);
+    if (nowPersonId() === d.person_id) renderNow();
+    if (state.tab === "card" && state.cardView.personId === d.person_id) renderCardView();
     if (d.status === "failed") {
       const name = (state.encounter && state.encounter.person && state.encounter.person.id === d.person_id && state.encounter.person.name)
         || (state.cardView.card && state.cardView.card.person.id === d.person_id && state.cardView.card.person.name);
@@ -1010,6 +1056,17 @@ document.addEventListener("visibilitychange", () => {
 
 // ---------------------------------------------------------------- boot
 
+// "2026-10-28/2026-10-29" -> "Oct 28–29"
+function fmtDates(range) {
+  const [a, b] = String(range).split("/").map((d) => new Date(`${d}T12:00:00`));
+  if (isNaN(a)) return range;
+  const md = (d, opts) => d.toLocaleDateString(undefined, opts);
+  if (!b || isNaN(b)) return md(a, { month: "short", day: "numeric" });
+  return a.getMonth() === b.getMonth()
+    ? `${md(a, { month: "short", day: "numeric" })}–${b.getDate()}`
+    : `${md(a, { month: "short", day: "numeric" })} – ${md(b, { month: "short", day: "numeric" })}`;
+}
+
 function updateOnline() { $("offline-banner").hidden = navigator.onLine; }
 window.addEventListener("online", () => { updateOnline(); if (state.me) { connectSSE(); loadCurrentEncounter(); } else loadAll(); });
 window.addEventListener("offline", updateOnline);
@@ -1018,7 +1075,7 @@ async function loadAll() {
   try {
     const me = await api("/api/me");
     state.me = me;
-    $("event-name").textContent = me.event ? `${me.event.name}${me.event.dates ? ` · ${me.event.dates}` : ""}` : "No event loaded";
+    $("event-name").textContent = me.event ? `${me.event.name}${me.event.dates ? ` · ${fmtDates(me.event.dates)}` : ""}` : "No event loaded";
     renderMeInfo();
     renderNoteTarget();
     connectSSE();

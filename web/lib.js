@@ -169,3 +169,17 @@ export function urlBase64ToUint8Array(base64) {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
+
+// Line icons (24px grid, drawn with currentColor) for places that need an icon in rendered HTML.
+const ICON_PATHS = {
+  alert: '<path d="M12 4 2.8 19.5h18.4L12 4z"/><path d="M12 10v4.2M12 17h.01"/>',
+  goal: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>',
+  intro: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19.5c.8-3 2.9-4.6 5.5-4.6s4.7 1.6 5.5 4.6M18 8v6M15 11h6"/>',
+  topic: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2v.2h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  reminder: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+};
+
+export function icon(name, cls = "icon") {
+  const d = ICON_PATHS[name];
+  return d ? raw(`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`) : "";
+}

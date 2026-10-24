@@ -1,0 +1,43 @@
+# Synthetic demo world: fictional speakers and sessions at the configured event. Loaded by `wingman.cli demo-seed`.
+sessions:
+  - {id: demo-s1, title: "Shipping agent-written code to production safely", start: "2026-10-28T17:30:00Z", room: "Gateway Pavilion"}
+  - {id: demo-s2, title: "What 10,000 agent PRs taught us", start: "2026-10-28T20:00:00Z", room: "Cowell Theater"}
+  - {id: demo-s3, title: "GPU scheduling for evaluation workloads", start: "2026-10-28T22:15:00Z", room: "Festival Pavilion, Stage 2"}
+  - {id: demo-s4, title: "Rust at the edge of payments", start: "2026-10-29T18:00:00Z", room: "Herbst Pavilion"}
+  - {id: demo-s5, title: "Agents in your CI pipeline", start: "2026-10-29T21:00:00Z", room: "Cowell Theater"}
+speakers:
+  - id: li:priya-natarajan-copperline
+    name: Priya Natarajan
+    title: VP Engineering
+    company: Copperline
+    linkedin_url: https://www.linkedin.com/in/priya-natarajan-copperline
+    bio: Priya leads a 140-person engineering org at Copperline, a payments platform, where coding agents now write a third of merged code.
+    sessions: [demo-s1]
+  - id: li:daniel-reyes-driftwood
+    name: Daniel Reyes
+    title: Founder & CEO
+    company: Driftwood Labs
+    linkedin_url: https://www.linkedin.com/in/daniel-reyes-driftwood
+    bio: Daniel founded Driftwood Labs, which builds review tooling for teams that merge agent-written pull requests.
+    sessions: [demo-s2]
+  - id: li:hannah-lindqvist-polargrid
+    name: Hannah Lindqvist
+    title: Staff ML Infrastructure Engineer
+    company: Polar Grid
+    linkedin_url: https://www.linkedin.com/in/hannah-lindqvist-polargrid
+    bio: Hannah runs the GPU scheduler behind Polar Grid's model evaluation platform.
+    sessions: [demo-s3]
+  - id: li:aiko-tanaka-kestrel
+    name: Aiko Tanaka
+    title: Engineering Manager
+    company: Kestrel Payments
+    linkedin_url: https://www.linkedin.com/in/aiko-tanaka-kestrel
+    bio: Aiko manages Kestrel's edge platform team and previously worked on Stripe's API infrastructure.
+    sessions: [demo-s4]
+  - id: li:leo-moreau-fernhill
+    name: Leo Moreau
+    title: Developer Advocate
+    company: Fernhill
+    linkedin_url: https://www.linkedin.com/in/leo-moreau-fernhill
+    bio: Leo helps teams run coding agents inside CI at Fernhill.
+    sessions: [demo-s5]

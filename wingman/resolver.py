@@ -8,7 +8,7 @@ import logging
 import re
 from difflib import SequenceMatcher
 
-from . import brightdata, cards, graph
+from . import brightdata, cards, graph, hub
 from .config import settings
 
 log = logging.getLogger("wingman.resolver")
@@ -67,7 +67,9 @@ def score(read: dict, cand: dict) -> tuple[float, str]:
     if cand.get("met_before"):
         s += 0.03
         why.append("met before")
-    if cand.get("from_search"):
+    if cand.get("found_via") == "business_search":
+        why.append("Bright Data people index")
+    elif cand.get("from_search"):
         why.append("from Google")
     return min(s, 1.0), " · ".join(why) or "name match"
 
@@ -75,7 +77,11 @@ def score(read: dict, cand: dict) -> tuple[float, str]:
 async def _graph_candidates(read: dict) -> list[dict]:
     text = " ".join(x for x in (read.get("name"), read.get("company")) if x)
     out = []
-    for p in await graph.search_people(text, limit=10):
+    async with hub.step("falkordb", "FalkorDB", "Search people already in the graph",
+                        f"full-text: {text}") as st:
+        found = await graph.search_people(text, limit=10)
+        st.result = f"{len(found)} candidates" if found else "no match"
+    for p in found:
         if p.get("is_me"):
             continue
         met = await graph.q("MATCH (:Encounter)-[:WITH]->(:Person {id:$id}) RETURN count(*)", {"id": p["id"]})
@@ -88,12 +94,48 @@ async def _graph_candidates(read: dict) -> list[dict]:
 _LI_TITLE = re.compile(r"^(?P<name>[^|\-–—]+?)\s*[-–—]\s*(?P<rest>.+?)(?:\s*\|\s*LinkedIn.*)?$")
 
 
+async def _people_candidates(read: dict) -> list[dict]:
+    """Bright Data Business Search: structured name + current company match over its people index."""
+    if not settings().brightdata_business_search:
+        return []
+    try:
+        people = await brightdata.people_search(read["name"], read.get("company"))
+        if not people and read.get("company"):
+            people = await brightdata.people_search(read["name"])  # badge company may be spelled differently
+    except brightdata.BrightDataError as e:
+        log.info("business search unavailable, using Google: %s", e)
+        return []
+    out = []
+    for x in people:
+        li = graph.norm_linkedin(x.get("url"))
+        if not li:
+            continue
+        if existing := await graph.find_person_by_linkedin(li):
+            out.append(cards._person_view(existing) | {"snippet": x.get("about"), "from_search": True})
+            continue
+        title, co = x.get("current_title"), x.get("current_company_name")
+        past = x.get("past_company_names") or []
+        snippet = " · ".join(t for t in (
+            x.get("location"), (x.get("about") or "")[:300],
+            f"Previously: {', '.join(past[:5])}" if past else None) if t)
+        out.append({"id": graph.person_id_for(li), "name": x["name"],
+                    "headline": " at ".join(t for t in (title, co) if t) or None, "company": co, "title": title,
+                    "photo_url": x.get("avatar"), "linkedin_url": li, "location": x.get("location"),
+                    "is_speaker": False, "enriched": "none", "snippet": snippet or None, "from_search": True,
+                    "found_via": "business_search"})
+    return out[:6]
+
+
 async def _search_candidates(read: dict) -> list[dict]:
     if not brightdata.enabled() or not read.get("name"):
         return []
+    if people := await _people_candidates(read):
+        return people
     query = f"\"{read['name']}\" {read.get('company') or ''} site:linkedin.com/in".strip()
     try:
         results = await brightdata.google(query)
+        if not results and read.get("company"):  # badge company spelled differently from their headline
+            results = await brightdata.google(f"\"{read['name']}\" site:linkedin.com/in")
     except brightdata.BrightDataError as e:
         log.warning("search failed: %s", e)
         return []
@@ -115,7 +157,7 @@ async def _search_candidates(read: dict) -> list[dict]:
             continue
         out.append({"id": graph.person_id_for(li), "name": name, "headline": headline, "company": None,
                     "title": None, "photo_url": None, "linkedin_url": li, "location": None, "is_speaker": False,
-                    "enriched": "none", "snippet": r.get("description"), "from_search": True})
+                    "enriched": "none", "snippet": r.get("description"), "from_search": True, "found_via": "serp"})
         if len(out) >= 6:
             break
     return out
@@ -140,7 +182,9 @@ async def _ensure_person(cand: dict) -> str:
         return cand["id"]
     await graph.upsert_person({"id": cand["id"], "name": cand.get("name"), "headline": cand.get("headline"),
                                "linkedin_url": cand.get("linkedin_url"), "serp_snippet": cand.get("snippet"),
-                               "company": cand.get("company"), "enriched": "none"})
+                               "company": cand.get("company"), "title": cand.get("title"),
+                               "photo_url": cand.get("photo_url"), "location": cand.get("location"),
+                               "enriched": "none", "found_via": cand.get("found_via")})
     return cand["id"]
 
 
@@ -189,8 +233,14 @@ async def resolve(read: dict | None, *, linkedin_url: str | None = None, encount
         len(top) == 1 or top[0]["score"] - top[1]["score"] >= AUTO_MARGIN)
     if clear_lead and top[0].get("from_search") and not top[0].get("is_speaker"):
         # a Google hit alone isn't enough: require the company to show up in its title/snippet
-        cs = company_score(read.get("company"), top[0].get("headline"), top[0].get("snippet"))
+        cs = company_score(read.get("company"), top[0].get("company"), top[0].get("headline"),
+                           top[0].get("snippet"))
         clear_lead = cs is not None and cs >= 0.9
+    if top:
+        hub.note("wingman", "Resolver", f"Best match: {top[0]['name']}",
+                 f"{round(top[0]['score'] * 100)}% · {top[0]['why']}"
+                 + (f" · next best {round(top[1]['score'] * 100)}%" if len(top) > 1 else ""),
+                 "confirmed" if clear_lead else "you pick")
     if clear_lead:
         pid = await _ensure_person(top[0])
         await _confirm(eid, pid)

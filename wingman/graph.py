@@ -194,12 +194,14 @@ async def topics_missing_embeddings(limit: int = 5000) -> list[str]:
 
 
 async def add_fact(pid: str, kind: str, text: str, source: str, url: str | None = None,
-                   date: str | None = None) -> str:
+                   date: str | None = None, via: str | None = None) -> str:
+    """via: the Bright Data product the fact was retrieved with, if any (shown on the card)."""
     fid = "f_" + slug(f"{pid}-{kind}-{text}")[:80]
     await q("MATCH (p:Person {id:$pid}) MERGE (f:Fact {id:$fid}) "
-            "SET f.kind=$kind, f.text=$text, f.source=$source, f.url=$url, f.date=$date "
+            "SET f.kind=$kind, f.text=$text, f.source=$source, f.url=$url, f.date=$date, f.via=$via "
             "MERGE (p)-[:HAS_FACT]->(f)",
-            {"pid": pid, "fid": fid, "kind": kind, "text": text, "source": source, "url": url, "date": date})
+            {"pid": pid, "fid": fid, "kind": kind, "text": text, "source": source, "url": url, "date": date,
+             "via": via})
     return fid
 
 
@@ -272,7 +274,7 @@ async def common_ground(pid: str) -> list[dict]:
 
 async def person_facts(pid: str, limit: int = 25) -> list[dict]:
     return await rows("MATCH (:Person {id:$pid})-[:HAS_FACT]->(f:Fact) "
-                      "RETURN {kind:f.kind, text:f.text, source:f.source, url:f.url, date:f.date} "
+                      "RETURN {kind:f.kind, text:f.text, source:f.source, url:f.url, date:f.date, via:f.via} "
                       "ORDER BY f.date DESC LIMIT $l", {"pid": pid, "l": limit})
 
 

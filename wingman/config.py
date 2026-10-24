@@ -15,6 +15,9 @@ class Settings(BaseSettings):
 
     wingman_token: str = ""
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
+    # "anthropic" or "openai"; empty = Anthropic if its key is set, else OpenAI if its key is set
+    wingman_llm: str = ""
     brightdata_api_key: str = ""
     brightdata_unlocker_zone: str = "web_unlocker1"
     brightdata_serp_zone: str = "serp_api1"
@@ -28,6 +31,10 @@ class Settings(BaseSettings):
     # Opus 5.5 everywhere by default. WINGMAN_MODEL_LIVE=claude-haiku-5-5 gives faster live cards.
     wingman_model_live: str = "claude-opus-5-5"
     wingman_model_recap: str = "claude-opus-5-5"
+    wingman_openai_model_live: str = "gpt-5.5"
+    wingman_openai_model_recap: str = "gpt-5.5"
+    # Business Search (people lookup) is early access; set false if the account isn't enabled, to skip the 403
+    brightdata_business_search: bool = True
 
     wingman_event: str = "github-universe-2026"
     wingman_timezone: str = "America/Los_Angeles"
@@ -36,6 +43,13 @@ class Settings(BaseSettings):
     vapid_private_key: str = ""
     vapid_public_key: str = ""
     vapid_subject: str = "mailto:wingman@example.com"
+
+    # Demo only: a fixtures directory (see demo/README.md). When set, Bright Data and Claude responses are
+    # replayed from it instead of calling the APIs, with simulated latency divided by the speed factor.
+    wingman_fixtures: str = ""
+    wingman_fixture_speed: float = 1.0
+    # Demo only: Listen plays this scripted conversation (wingman/demo.py) instead of using the mic
+    wingman_demo_script: str = ""
 
 
 @lru_cache
