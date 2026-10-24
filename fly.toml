@@ -1,0 +1,28 @@
+# fly launch --copy-config --no-deploy --name <your-app-name>; fly volumes create wingman_data --size 1
+app = "wingman-conference"
+primary_region = "sjc"
+
+[build]
+
+[env]
+  WINGMAN_EVENT = "github-universe-2026"
+
+[mounts]
+  source = "wingman_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+
+[[vm]]
+  memory = "1gb"
+  cpus = 1

@@ -1,0 +1,16 @@
+id: github-universe-2026
+name: GitHub Universe 2026
+dates: "2026-10-28/2026-10-29"
+timezone: America/Los_Angeles
+venue: Fort Mason Center, San Francisco
+adapter: rainfocus
+rainfocus:
+  api: https://events.githubuniverse.com/api
+  profile_id: TJRfOIsFkCN8hnKQS3oqHpRTCt7LQMuV
+  widget_id: aJLK17fgPHkuE8mRdsuqFQ3yX59qro72
+  referer: https://reg.githubuniverse.com/
+  search_params: "tab.allsessions=1783449560443001ldrh&type=session&catalogDisplay=list"
+# Other conferences: use `adapter: generic` with a list of speaker/agenda page URLs;
+# pages are fetched through Bright Data Web Unlocker and parsed by Claude.
+# generic:
+#   urls: [https://example.com/speakers]

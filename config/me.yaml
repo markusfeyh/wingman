@@ -1,0 +1,11 @@
+# Who you are and what you want from this event. Edit freely; goals are also editable in the app.
+name: Markus Feyh
+linkedin_url: ""          # e.g. https://www.linkedin.com/in/your-handle/
+about: ""                 # 2-5 lines: current role, past employers, schools, what you work on, hobbies
+goals:
+  - "Replace these with your goals for the event, e.g. meet engineering leaders at AI dev-tools companies"
+# People you already know. Used for "your friend X worked with them at Y".
+# - name: Dana Lee
+#   linkedin_url: https://www.linkedin.com/in/...
+#   companies: [Plaid, Stripe]
+known_people: []
