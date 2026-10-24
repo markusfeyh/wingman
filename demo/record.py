@@ -188,11 +188,13 @@ class Demo:
             await asyncio.sleep(0.1)
 
 
-async def run(v: dict, out: Path, scale: int, badge: Path):
+async def run(v: dict, out: Path, scale: int, badge: Path, appearance: str = "light"):
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(channel="chrome", headless=True,
                                            args=["--autoplay-policy=no-user-gesture-required", "--hide-scrollbars"])
-        ctx = await browser.new_context(viewport={"width": 1920, "height": 1080}, device_scale_factor=scale)
+        # light appearance: the phone app follows it (the stage itself stays dark)
+        ctx = await browser.new_context(viewport={"width": 1920, "height": 1080}, device_scale_factor=scale,
+                                        color_scheme=appearance)
 
         # the badge photo
         bp = await ctx.new_page()
@@ -262,9 +264,14 @@ async def run(v: dict, out: Path, scale: int, badge: Path):
         await d.fast(False)
         await asyncio.sleep(1.4)
         await d.caption(*v["cites"])
-        await d.scroll("document.querySelector('#now-encounter .card .sources').getBoundingClientRect().bottom"
-                       " + scrollY - innerHeight + 90", 2600)
-        await asyncio.sleep(4.2)
+        await d.scroll("document.querySelector('#now-encounter details.sources').getBoundingClientRect().top"
+                       " + scrollY - innerHeight + 120", 2200)
+        await asyncio.sleep(0.6)
+        await d.tap("#now-encounter details.sources summary")
+        await asyncio.sleep(0.5)
+        await d.scroll("document.querySelector('#now-encounter details.sources').getBoundingClientRect().bottom"
+                       " + scrollY - innerHeight + 90", 1600)
+        await asyncio.sleep(4.0)
         await d.scroll("0", 1400)
         await asyncio.sleep(0.6)
 
@@ -314,14 +321,19 @@ async def run(v: dict, out: Path, scale: int, badge: Path):
                        " + scrollY - innerHeight + 110", 2600)
         await asyncio.sleep(4.0)
 
-        # closing summary, with their card on the phone
-        await d.tap('#tabs [data-tab="card"]')
-        await asyncio.sleep(0.5)
+        # closing summary, with their card on the phone (opened from the recap)
+        await d.scroll("0", 1200)
+        await asyncio.sleep(0.3)
+        await d.tap('#recap-body [data-action="open-person"]')
+        await d.until_app("!!document.querySelector('#card-view .card h2.card-name')")
+        await asyncio.sleep(0.4)
         await d.stage("outro", {"lines": v["outro"]} if v["outro"] else {})
-        await asyncio.sleep(1.5)
-        await d.scroll("document.querySelector('#card-view .card .sec:nth-of-type(3)')"
-                       ".getBoundingClientRect().top + scrollY - 70", 2400)
-        await asyncio.sleep(6.5)
+        await asyncio.sleep(1.2)
+        await d.tap("#card-view details.sources summary")
+        await asyncio.sleep(0.4)
+        await d.scroll("document.querySelector('#card-view details.sources').getBoundingClientRect().bottom"
+                       " + scrollY - innerHeight + 90", 2400)
+        await asyncio.sleep(6.0)
 
         secs = await rec.stop()
         await http.aclose()
@@ -334,6 +346,7 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--scale", type=int, default=2, help="device pixel ratio while rendering (2 = crisper text)")
     ap.add_argument("--no-server", action="store_true", help="use a server already running on port 8077")
+    ap.add_argument("--appearance", choices=("light", "dark"), default="light", help="phone app appearance")
     args = ap.parse_args()
     v = VARIANTS["fixtures"]
     out = Path(args.out or ROOT / "demo" / "out" / "wingman-demo.mp4")
@@ -358,7 +371,7 @@ def main():
             sys.exit("server did not start (is FalkorDB running?)")
         r = httpx.post(f"{BASE}/api/demo/seed", timeout=300)  # a clean demo graph, so the app opens ready
         print("seed:", r.json())
-        asyncio.run(run(v, out, args.scale, data / "badge.jpg"))
+        asyncio.run(run(v, out, args.scale, data / "badge.jpg", args.appearance))
     finally:
         if server:
             server.terminate()

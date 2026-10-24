@@ -16,6 +16,5 @@ __pycache__/
 .claude/skills/impeccable/scripts/bin/
 
 # demo recordings: per-run data and output videos
-demo/.data/
-demo/.data-live/
+demo/.data*/
 demo/out/

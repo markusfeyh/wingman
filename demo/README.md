@@ -9,8 +9,13 @@ FalkorDB query), streamed from the server's `trace` events.
 |---|---|---|---|
 | Synthetic | `uv run --with playwright python demo/record.py` | Fictional people and companies; Bright Data and Claude responses replayed from `demo/fixtures/` with realistic, shortened latency | none |
 
-Output goes to `demo/out/` (1920×1080, H.264). It needs FalkorDB running (`docker start wingman-falkordb`),
-`ffmpeg`, and Google Chrome (Playwright drives your installed Chrome headless; no browser download).
+Output goes to `demo/out/` (1920×1080, H.264). The phone frame is an iPhone 18 Pro (402×874 pt screen) and the
+app records in light appearance (`--appearance dark` for dark). It needs FalkorDB running
+(`docker start wingman-falkordb`), `ffmpeg`, and Google Chrome (Playwright drives your installed Chrome headless;
+no browser download).
+
+`demo/gallery.py` captures every app state at iPhone 18 Pro size (1206×2622 PNGs) for design review, against a
+running fixture-mode server.
 
 ## What's real in the take
 

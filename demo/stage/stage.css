@@ -67,23 +67,24 @@ body {
 .stage.on { opacity: 1; }
 
 .phone-col { position: absolute; left: 0; top: 0; width: 900px; height: 1080px; }
+/* iPhone 18 Pro: 402×874 pt screen (1206×2622 px at 3×) */
 .phone {
-  position: absolute; left: 261px; top: 96px; width: 418px; height: 872px; padding: 14px;
+  position: absolute; left: 255px; top: 89px; width: 430px; height: 902px; padding: 14px;
   border-radius: 64px; background: #040506;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 0 0 7px #16191e, 0 0 0 8px rgba(255, 255, 255, 0.07),
               0 40px 90px -10px rgba(0, 0, 0, 0.75), 0 18px 36px rgba(0, 0, 0, 0.45);
 }
-.screen { position: relative; width: 390px; height: 844px; border-radius: 50px; overflow: hidden; background: #0b0d10; }
+.screen { position: relative; width: 402px; height: 874px; border-radius: 52px; overflow: hidden; background: #0b0d10; }
 .statusbar { position: relative; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 6px 26px 0 34px; color: #f2f4f6; }
 .clock { font: 600 16px/1 -apple-system, "SF Pro Text", var(--sans); letter-spacing: -0.01em; }
 .island { position: absolute; left: 50%; top: 11px; width: 122px; height: 34px; margin-left: -61px; border-radius: 20px; background: #000; }
 .sys { display: flex; gap: 6px; align-items: center; }
 .sys svg { height: 11px; width: auto; fill: currentColor; }
 .sys svg:last-child { height: 12px; }
-#app { display: block; width: 390px; height: 798px; border: 0; background: #0b0d10; }
+#app { display: block; width: 402px; height: 828px; border: 0; background: #0b0d10; }
 
 .dictation {
-  position: absolute; left: 310px; top: 822px; width: 320px; display: flex; align-items: center; gap: 12px;
+  position: absolute; left: 310px; top: 852px; width: 320px; display: flex; align-items: center; gap: 12px;
   padding: 13px 18px; border-radius: 999px; background: rgba(28, 31, 37, 0.96); color: var(--text);
   font-size: 17px; font-weight: 500; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
   animation: rise 420ms var(--ease);
@@ -95,7 +96,7 @@ body {
 @keyframes bar { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-.info-col { position: absolute; left: 880px; top: 96px; width: 920px; height: 872px; display: flex; flex-direction: column; }
+.info-col { position: absolute; left: 880px; top: 89px; width: 920px; height: 902px; display: flex; flex-direction: column; }
 
 .caption { min-height: 246px; transition: opacity 380ms var(--ease), transform 380ms var(--ease), filter 380ms var(--ease); }
 .caption.swap { opacity: 0; transform: translateY(8px); filter: blur(4px); }
@@ -162,3 +163,9 @@ body {
       padding: 8px 14px 8px 12px; border-radius: 999px; background: #1d2330; color: var(--text); font-size: 16px; font-weight: 600;
       box-shadow: 0 0 0 1px #343b46; animation: rise 300ms var(--ease); }
 .ff svg { width: 18px; height: 18px; fill: var(--bd-text); }
+
+/* the phone app follows the system appearance; keep its status bar readable on a light screen */
+@media (prefers-color-scheme: light) {
+  .screen, #app { background: #f2f3f5; }
+  .statusbar { color: #121418; }
+}

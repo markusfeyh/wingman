@@ -158,7 +158,7 @@ class ListenSession:
                 if best < min_score:
                     return  # not someone we know; leave it to the Claude pass (which can also search)
             self.recent_intros[key] = now
-            res = await resolver.resolve(read, new_encounter=True)
+            res = await resolver.resolve(read, new_encounter=True, via="conversation")
             log.info("intro (%s): %s -> %s", source, name, res["encounter"]["status"])
             hub.publish("resolution", res, push_text=f"Talking to {name}?")
 
@@ -210,6 +210,11 @@ class ListenSession:
                     self.nudges.append(out.nudge.text)
                     hub.publish("nudge", {"encounter_id": eid, "text": out.nudge.text, "kind": out.nudge.kind},
                                 push_text=out.nudge.text)
+                    if eid:  # keep it on the encounter so the card can pin it (toasts are gone in 9 s)
+                        raw = await graph.get_encounter_raw(eid) or {}
+                        kept = json.loads(raw.get("nudges") or "[]") + [{"text": out.nudge.text, "kind": out.nudge.kind,
+                                                                         "at": cards.iso(graph.now_ms())}]
+                        await graph.update_encounter(eid, {"nudges": json.dumps(kept[-5:])})
                     hub.note("llm", llm.label(), "Live nudge", out.nudge.text, out.nudge.kind)
             if eid and out.topics:
                 for t in out.topics[:5]:

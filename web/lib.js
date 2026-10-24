@@ -177,6 +177,8 @@ const ICON_PATHS = {
   intro: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19.5c.8-3 2.9-4.6 5.5-4.6s4.7 1.6 5.5 4.6M18 8v6M15 11h6"/>',
   topic: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2v.2h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
   reminder: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  check: '<path d="M5 12.5 10 17.5 19 7"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>',
 };
 
 export function icon(name, cls = "icon") {

@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b0d10">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0d10" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f2f3f5" media="(prefers-color-scheme: light)">
+  <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,15 +19,15 @@
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <div id="offline-banner" class="banner" hidden>Offline. Captures will fail until you're back online.</div>
+  <div id="offline-banner" class="banner" role="status" hidden>Offline. Showing saved data; new captures need a connection.</div>
   <div id="toasts" aria-live="polite"></div>
 
   <!-- Login overlay -->
   <div id="login" class="overlay" hidden>
     <form id="login-form" class="login-box">
       <div class="logo-row"><img src="/icons/icon-192.png" alt="" width="48" height="48"><h1>Wingman</h1></div>
-      <p class="muted">Enter your access token (<code>WINGMAN_TOKEN</code> from the server's <code>.env</code>).</p>
-      <input id="login-token" type="password" autocomplete="current-password" placeholder="Access token" required>
+      <label class="muted" for="login-token">Enter your Wingman access code. You set it when the server was set up.</label>
+      <input id="login-token" type="password" autocomplete="current-password" placeholder="Access code" required>
       <button type="submit" class="btn primary block">Sign in</button>
       <p id="login-error" class="error" hidden></p>
     </form>
@@ -40,7 +41,7 @@
           <h1>Wingman</h1>
           <div id="event-name" class="muted small"></div>
         </div>
-        <span id="sse-dot" class="dot" title="Live updates"></span>
+        <span id="sse-dot" class="conn" role="status">Connecting…</span>
       </header>
 
       <div class="listen-card" id="listen-card">
@@ -50,10 +51,10 @@
             <strong>Listen</strong>
             <span id="listen-status" class="muted small">Off</span>
           </span>
-          <input id="listen-toggle" type="checkbox" class="switch" role="switch" aria-label="Listen">
+          <input id="listen-toggle" type="checkbox" class="switch" role="switch" aria-label="Listen" aria-describedby="listen-consent">
         </label>
-        <div class="consent small">Ask first: "Mind if my notetaker listens?"</div>
-        <div id="transcript" class="transcript" hidden></div>
+        <div class="consent small" id="listen-consent">Ask first: "Mind if my notetaker listens?"</div>
+        <div id="transcript" class="transcript" aria-live="off" hidden></div>
       </div>
 
       <div class="capture-grid">
@@ -66,22 +67,22 @@
       <form id="note-panel" class="panel" hidden>
         <div class="panel-head">
           <span id="note-target" class="small muted">New note</span>
-          <button type="button" class="link small" data-action="note-unbind" id="note-unbind" hidden>Unlink</button>
+          <span class="row tight">
+            <button type="button" class="link small" data-action="note-unbind" id="note-unbind" hidden>Unlink</button>
+            <button type="button" class="link small" data-action="note-clear">Clear</button>
+          </span>
         </div>
-        <textarea id="note-text" rows="4" placeholder="Tap, then dictate with Wispr: “Priya, Northwind, send her the eval deck”" autocapitalize="sentences" autocomplete="off" spellcheck="true"></textarea>
-        <div class="row">
-          <button type="button" class="btn ghost" data-action="note-clear">Clear</button>
-          <button type="submit" class="btn primary grow">Save note</button>
-        </div>
+        <textarea id="note-text" rows="4" aria-label="Note" placeholder="Tap, then dictate with Wispr: “Priya, Northwind, send her the eval deck”" autocapitalize="sentences" autocomplete="off" spellcheck="true"></textarea>
+        <button type="submit" class="btn primary block">Save note</button>
       </form>
 
       <form id="lookup-panel" class="panel" hidden>
-        <input id="lookup-name" type="text" placeholder="Name or LinkedIn URL" autocomplete="off" autocapitalize="words" required>
-        <input id="lookup-company" type="text" placeholder="Company (optional)" autocomplete="off" autocapitalize="words">
+        <input id="lookup-name" type="text" aria-label="Name or LinkedIn URL" placeholder="Name or LinkedIn URL" autocomplete="off" autocapitalize="words" required>
+        <input id="lookup-company" type="text" aria-label="Company (optional)" placeholder="Company (optional)" autocomplete="off" autocapitalize="words">
         <button type="submit" class="btn primary block">Find</button>
       </form>
 
-      <div id="now-encounter"></div>
+      <div id="now-encounter" aria-live="polite"></div>
     </section>
 
     <!-- CARD -->
@@ -97,7 +98,7 @@
     <!-- PEOPLE -->
     <section class="screen" data-screen="people" hidden>
       <header class="top"><h1>People</h1><span></span></header>
-      <input id="people-search" type="search" placeholder="Search name or company" autocomplete="off">
+      <input id="people-search" type="search" aria-label="Search people" placeholder="Search name or company" autocomplete="off">
       <div id="people-results"></div>
       <h2>Met today</h2>
       <div id="people-met"></div>
@@ -109,11 +110,11 @@
     <section class="screen" data-screen="recap" hidden>
       <header class="top"><h1>Recap</h1><span></span></header>
       <div class="row">
-        <input id="recap-date" type="date" class="grow">
+        <input id="recap-date" type="date" class="grow" aria-label="Day">
         <button class="btn primary" data-action="recap-run" id="recap-run">Run recap</button>
       </div>
       <form id="ask-form" class="panel">
-        <textarea id="ask-text" rows="2" placeholder="Ask: “Who did I meet who works on robotics?”"></textarea>
+        <textarea id="ask-text" rows="2" aria-label="Ask about the people you met" placeholder="Ask: “Who did I meet who works on robotics?”"></textarea>
         <button type="submit" class="btn block">Ask</button>
         <div id="ask-answer" class="answer" hidden></div>
       </form>
@@ -139,8 +140,8 @@
         <button class="btn block" data-action="push-enable" id="push-enable" hidden>Enable notifications</button>
       </div>
       <form id="token-form" class="panel">
-        <strong>Access token</strong>
-        <input id="token-text" type="password" autocomplete="current-password" placeholder="Access token">
+        <strong>Access code</strong>
+        <input id="token-text" type="password" autocomplete="current-password" aria-label="Access code" placeholder="Access code">
         <button type="submit" class="btn block">Sign in again</button>
       </form>
       <div class="panel">
@@ -151,9 +152,8 @@
     </section>
   </main>
 
-  <nav class="tabs" id="tabs">
+  <nav class="tabs" id="tabs" aria-label="Sections">
     <button data-tab="now" class="active"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg>Now</button>
-    <button data-tab="card"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10.5" r="2"/><path d="M6.3 15.8c.6-1.3 1.5-1.9 2.7-1.9s2.1.6 2.7 1.9M14.5 10h4M14.5 13.5h3"/></svg>Card</button>
     <button data-tab="people"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.8-3 2.9-4.6 5.5-4.6s4.7 1.6 5.5 4.6M15.5 5.5a3 3 0 0 1 0 6M17.5 14.6c1.6.6 2.6 2 3 4.4"/></svg>People</button>
     <button data-tab="recap"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 7 1.7 1.7 3-3M3.5 14l1.7 1.7 3-3M11.5 7h9M11.5 14h9M11.5 19.5h9"/></svg>Recap</button>
     <button data-tab="settings"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</button>

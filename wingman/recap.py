@@ -73,8 +73,11 @@ async def get(day: str | None = None) -> dict:
     out = []
     for e in await graph.encounters_between(a, b):
         view = await resolver.encounter_view(e["id"])
+        notes = await graph.encounter_notes(e["id"])
+        if not view["person"] and not notes and not e.get("summary"):
+            continue  # an abandoned lookup (nobody picked, nothing said): not a conversation
         fu = json.loads(e["follow_up"]) if e.get("follow_up") else None
-        out.append({"encounter": view, "summary": e.get("summary"),
-                    "notes": [n | {"at": cards.iso(n["at"])} for n in await graph.encounter_notes(e["id"])],
+        out.append({"encounter": view, "summary": e.get("summary"), "recapped": bool(e.get("recapped_at")),
+                    "notes": [n | {"at": cards.iso(n["at"])} for n in notes],
                     "action_items": await graph.action_items(e["id"]), "follow_up": fu})
     return {"date": day, "encounters": out, "open_items": await graph.action_items(status="open")}

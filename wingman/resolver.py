@@ -56,22 +56,27 @@ def score(read: dict, cand: dict) -> tuple[float, str]:
     ns = name_score(read.get("name") or "", cand.get("name") or "")
     cs = company_score(read.get("company"), cand.get("company"), cand.get("headline"), cand.get("snippet"))
     s = ns if cs is None else 0.65 * ns + 0.35 * cs
+    # evidence first (what the user can check), where it came from last
     why = []
+    if cs is None:
+        why.append("no company to compare")
+    elif cs >= 0.9:
+        why.append("company matches")
+    elif cs < 0.5:
+        why.append("different company")
+    else:
+        why.append("company partly matches")
     if cand.get("is_speaker"):
         s += 0.05
-        why.append("on speaker list")
-    if cs is not None and cs >= 0.9:
-        why.append("company matches")
-    elif cs is not None and cs < 0.5:
-        why.append("different company")
+        why.append("on the speaker list")
     if cand.get("met_before"):
         s += 0.03
-        why.append("met before")
+        why.append("you met before")
     if cand.get("found_via") == "business_search":
-        why.append("Bright Data people index")
+        why.append("via Bright Data people index")
     elif cand.get("from_search"):
-        why.append("from Google")
-    return min(s, 1.0), " · ".join(why) or "name match"
+        why.append("via Google")
+    return min(s, 1.0), " · ".join(why)
 
 
 async def _graph_candidates(read: dict) -> list[dict]:
@@ -166,7 +171,8 @@ async def _search_candidates(read: dict) -> list[dict]:
 def _encounter_view(e: dict, person: dict | None) -> dict:
     return {"id": e["id"], "at": cards.iso(e.get("at")), "ended_at": cards.iso(e.get("ended_at")),
             "place": e.get("place"), "person": person, "status": e.get("status") or "resolving",
-            "candidates": json.loads(e.get("candidates") or "[]"), "summary": e.get("summary")}
+            "candidates": json.loads(e.get("candidates") or "[]"), "summary": e.get("summary"),
+            "matched_by": e.get("matched_by"), "nudges": json.loads(e.get("nudges") or "[]")}
 
 
 async def encounter_view(eid: str) -> dict | None:
@@ -188,14 +194,20 @@ async def _ensure_person(cand: dict) -> str:
     return cand["id"]
 
 
-async def _confirm(eid: str, pid: str) -> None:
+async def _confirm(eid: str, pid: str, matched_by: str | None = None) -> None:
     await graph.set_encounter_person(eid, pid)
+    if matched_by:
+        await graph.update_encounter(eid, {"matched_by": matched_by})
     cards.start_card_job(pid, eid)
 
 
+VIA = {"badge": "the badge", "lookup": "your lookup", "note": "your note", "conversation": "the conversation"}
+
+
 async def resolve(read: dict | None, *, linkedin_url: str | None = None, encounter_id: str | None = None,
-                  new_encounter: bool = True) -> dict:
-    """Create (or reuse) an encounter and resolve who it is with. Returns a Resolution."""
+                  new_encounter: bool = True, via: str = "badge") -> dict:
+    """Create (or reuse) an encounter and resolve who it is with. Returns a Resolution.
+    via: where the name came from (badge | lookup | note | conversation), shown as the match basis."""
     ev_id = settings().wingman_event
     if encounter_id:
         eid = encounter_id
@@ -210,7 +222,7 @@ async def resolve(read: dict | None, *, linkedin_url: str | None = None, encount
         p = await graph.find_person_by_linkedin(li)
         pid = p["id"] if p else await _ensure_person({"id": graph.person_id_for(li), "linkedin_url": li,
                                                       "name": read.get("name") or li.rsplit("/", 1)[1]})
-        await _confirm(eid, pid)
+        await _confirm(eid, pid, "Exact LinkedIn profile from a QR code or link")
         return {"encounter": await encounter_view(eid), "read": read or None}
 
     if not read.get("name"):
@@ -243,7 +255,9 @@ async def resolve(read: dict | None, *, linkedin_url: str | None = None, encount
                  "confirmed" if clear_lead else "you pick")
     if clear_lead:
         pid = await _ensure_person(top[0])
-        await _confirm(eid, pid)
+        cs = company_score(read.get("company"), top[0].get("company"), top[0].get("headline"), top[0].get("snippet"))
+        basis = "Name and company" if cs is not None and cs >= 0.9 else "Name"
+        await _confirm(eid, pid, f"{basis} from {VIA.get(via, via)}")
     else:
         await graph.update_encounter(eid, {"status": "needs_pick" if top else "unknown"})
     return {"encounter": await encounter_view(eid), "read": read}
@@ -258,7 +272,7 @@ async def confirm(eid: str, pid: str) -> dict | None:
         await _ensure_person(cand)
     elif not await graph.get_person(pid):
         return None
-    await _confirm(eid, pid)
+    await _confirm(eid, pid, "You picked this match")
     return await encounter_view(eid)
 
 

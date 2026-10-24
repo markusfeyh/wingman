@@ -29,20 +29,25 @@ const state = {
 
 // ---------------------------------------------------------------- toasts
 
-function toast(text, { kind = "info", action = null, timeout = 6000, iconName = null } = {}) {
+const TOAST_ICONS = { ok: "check", warn: "alert", error: "alert" };
+
+// action: {label, fn} or actions: [{label, fn}, ...]
+function toast(text, { kind = "info", action = null, actions = null, timeout = 6000, iconName = null } = {}) {
   const box = $("toasts");
   const el = document.createElement("div");
   el.className = `toast ${kind}`;
-  if (iconName) setHTML(el, icon(iconName, "icon toast-ico"));
+  el.setAttribute("role", kind === "error" ? "alert" : "status");
+  const ic = iconName || TOAST_ICONS[kind];
+  if (ic) setHTML(el, icon(ic, "icon toast-ico"));
   const span = document.createElement("span");
   span.className = "grow";
   span.textContent = text;
   el.appendChild(span);
-  if (action) {
+  for (const a of actions || (action ? [action] : [])) {
     const b = document.createElement("button");
     b.className = "btn";
-    b.textContent = action.label;
-    b.addEventListener("click", (e) => { e.stopPropagation(); el.remove(); action.fn(); });
+    b.textContent = a.label;
+    b.addEventListener("click", (e) => { e.stopPropagation(); el.remove(); a.fn(); });
     el.appendChild(b);
   }
   el.addEventListener("click", () => el.remove());
@@ -98,7 +103,12 @@ function showTab(tab, { updateHash = true } = {}) {
   if (tab !== state.tab) state.prevTab = state.tab;
   state.tab = tab;
   document.querySelectorAll(".screen").forEach((s) => { s.hidden = s.dataset.screen !== tab; });
-  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  const lit = tab === "card" ? (state.prevTab && state.prevTab !== "card" ? state.prevTab : "now") : tab;
+  document.querySelectorAll("#tabs button").forEach((b) => {
+    const on = b.dataset.tab === lit;
+    b.classList.toggle("active", on);
+    if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
   if (updateHash) {
     const hash = tab === "card" && state.cardView.personId ? `#card/${encodeURIComponent(state.cardView.personId)}` : `#${tab}`;
     if (location.hash !== hash) history.replaceState(null, "", hash);
@@ -114,6 +124,7 @@ function routeFromHash() {
   const h = decodeURIComponent(location.hash.replace(/^#/, ""));
   const [tab, id] = h.split("/");
   if (tab === "card" && id) { openCard(id, null); return; }
+  if (tab === "card") { showTab("now", { updateHash: false }); return; }
   showTab(TABS.includes(tab) ? tab : "now", { updateHash: false });
 }
 
@@ -125,34 +136,34 @@ window.addEventListener("hashchange", routeFromHash);
 
 // ---------------------------------------------------------------- card rendering
 
+const SOURCE_LABEL = { graph: "your network", profile: "their profile", system: "Wingman" };
+
 function factList(items) {
   return html`<ul>${items.map((f) => {
     const url = safeUrl(f.url);
-    const label = f.source === "graph" ? "your graph" : f.source;
+    const label = SOURCE_LABEL[f.source] || f.source;
     const src = label ? (url ? html` <span class="src">· <a href="${url}" target="_blank" rel="noopener">${label}</a></span>` : html` <span class="src">· ${label}</span>`) : "";
-    const via = f.via ? html` <span class="via" title="Retrieved with Bright Data ${f.via}">Bright Data</span>` : "";
-    return html`<li>${f.text}${src}${via}</li>`;
+    return html`<li>${f.text}${src}</li>`;
   })}</ul>`;
 }
 
-// What Bright Data retrieved for this card, so every claim can be traced to a source.
+// What Bright Data retrieved for this card: one "how we know" layer, closed until you want it.
 function retrievedList(items) {
   if (!items || !items.length) return "";
-  return html`<div class="sec sources"><div class="sec-t">Retrieved with Bright Data</div>
+  return html`<details class="sources"><summary>${icon("chev", "icon chev")}<span>Sources · ${items.length} retrieved with Bright Data</span></summary>
     <ul>${items.map((r) => {
       const url = safeUrl(r.url);
-      return html`<li><span class="bd-product">${r.product}</span>${url ? html`<a href="${url}" target="_blank" rel="noopener">${r.label}</a>` : r.label}</li>`;
-    })}</ul></div>`;
+      return html`<li><span class="bd-product">${r.product}</span>${url ? html`<a href="${url}" target="_blank" rel="noopener">${r.label}</a>` : html`<span>${r.label}</span>`}</li>`;
+    })}</ul></details>`;
 }
 
 function section(title, items) {
   if (!items || !items.length) return "";
-  return html`<div class="sec"><div class="sec-t">${title}</div>${factList(items)}</div>`;
+  return html`<div class="sec"><h3 class="sec-t">${title}</h3>${factList(items)}</div>`;
 }
 
 function statusPill(status) {
-  const label = { pending: "Building…", quick: "Quick", full: "Full" }[status] || status;
-  return html`<span class="pill ${status}">${label}</span>`;
+  return status === "pending" ? html`<span class="pill pending">Building…</span>` : "";
 }
 
 // ctx: { encounterId, mode: "now" | "view" }
@@ -165,43 +176,41 @@ function renderCard(card, person, ctx) {
   const prev = (card && card.previous_encounters) || [];
   const heads = (card && card.heads_up) || [];
   const li = safeUrl(p.linkedin_url);
+  const enc = ctx.encounterId && state.encounter && state.encounter.id === ctx.encounterId ? state.encounter : null;
+  const nudge = enc && enc.nudges && enc.nudges.length ? enc.nudges[enc.nudges.length - 1] : null;
+  const enriching = state.enriching.has(p.id) && status !== "full";
 
-  let actions;
-  if (ctx.encounterId) {
-    actions = html`<div class="card-actions">
-      <button class="btn danger" data-action="not-them" data-enc="${ctx.encounterId}" data-person="${p.id}">Not them</button>
-      <button class="btn" data-action="add-note" data-enc="${ctx.encounterId}" data-name="${p.name}">Add note</button>
-      <button class="btn" data-action="end" data-enc="${ctx.encounterId}">End</button>
-    </div>`;
-  } else {
-    actions = html`<div class="card-actions two">
-      <button class="btn primary" data-action="start-convo" data-person="${p.id}">Talking to them</button>
-      <button class="btn" data-action="refresh-card" data-person="${p.id}">Refresh card</button>
-    </div>`;
-  }
+  const actions = ctx.encounterId
+    ? html`<div class="card-actions">
+        <button class="btn" data-action="add-note" data-enc="${ctx.encounterId}" data-name="${p.name}">Add note</button>
+        <button class="btn" data-action="end" data-enc="${ctx.encounterId}" data-name="${p.name}">End conversation</button>
+      </div>`
+    : html`<div class="card-actions">
+        <button class="btn primary" data-action="start-convo" data-person="${p.id}">Talking to them</button>
+        <button class="btn" data-action="refresh-card" data-person="${p.id}">Refresh card</button>
+      </div>`;
 
   return html`<article class="card">
     <div class="card-head">
       ${avatar(p, "lg")}
       <div class="meta">
-        <div class="card-name">${p.name || "Unknown"}</div>
-        <div class="card-role">${roleLine(p)}</div>
-        <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">
-          ${statusPill(status)}
-          ${p.is_speaker ? html`<span class="pill speaker">Speaker</span>` : ""}
-          ${li ? html`<a class="pill" href="${li}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
-        </div>
+        <h2 class="card-name">${p.name || "Unknown"}</h2>
+        <div class="card-role">${roleLine(p)}${li ? html`${roleLine(p) ? " · " : ""}<a href="${li}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</div>
+        ${enc && enc.matched_by ? html`<div class="basis">${icon("check")}<span>${enc.matched_by}</span></div>` : ""}
+        ${pending || p.is_speaker ? html`<div class="row pills">${statusPill(status)}${p.is_speaker ? html`<span class="pill speaker">Speaker</span>` : ""}</div>` : ""}
       </div>
+      ${ctx.encounterId ? html`<button class="link small not-them" data-action="not-them" data-enc="${ctx.encounterId}" data-person="${p.id}" data-name="${p.name}">Not them?</button>` : ""}
     </div>
-    ${pending ? html`<div class="sec"><div class="sec-t">Building card</div><div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:75%"></div><div class="skeleton" style="width:60%"></div></div>` : ""}
-    ${section("Common ground", card && card.common_ground)}
+    ${nudge ? html`<div class="nudge-pin">${icon(nudge.kind || "topic")}<span>${nudge.text}</span></div>` : ""}
+    ${heads.length ? html`<div class="heads">${heads.map((h) => html`<div>${icon("alert")}<span>${h}</span></div>`)}</div>` : ""}
+    ${pending ? html`<div class="sec" aria-label="Building card"><div class="skeleton w90"></div><div class="skeleton w75"></div><div class="skeleton w60"></div></div>` : ""}
+    ${enriching ? html`<div class="enriching"><span class="spinner sm" aria-hidden="true"></span>Getting their LinkedIn, news and own site via Bright Data…</div>` : ""}
     ${section("Ask about", card && card.ask_about)}
+    ${section("Common ground", card && card.common_ground)}
     ${section("Fits your goals", card && card.goal_fit)}
     ${empty ? html`<div class="sec muted small">Nothing in common found yet. ${p.headline ? html`Headline: ${p.headline}` : ""}</div>` : ""}
-    ${state.enriching.has(p.id) && status !== "full" ? html`<div class="enriching"><span class="spinner sm" aria-hidden="true"></span>Getting their LinkedIn, news and own site via Bright Data…</div>` : ""}
-    ${heads.length ? html`<div class="heads">${heads.map((h) => html`<div>${icon("alert")}<span>${h}</span></div>`)}</div>` : ""}
-    ${sessions.length ? html`<div class="sec"><div class="sec-t">Their sessions</div><ul>${sessions.map((s) => html`<li>${s.title}${s.start ? html` <span class="src">· ${fmtDayTime(s.start)}${s.room ? ` · ${s.room}` : ""}</span>` : ""}</li>`)}</ul></div>` : ""}
-    ${prev.length ? html`<div class="sec"><div class="sec-t">Met before</div><ul>${prev.map((m) => html`<li>${fmtDay(m.at)}${m.summary ? html` · ${m.summary}` : ""}</li>`)}</ul></div>` : ""}
+    ${sessions.length ? html`<div class="sec"><h3 class="sec-t">Their sessions</h3><ul>${sessions.map((s) => html`<li>${s.title}${s.start ? html` <span class="src">· ${fmtDayTime(s.start)}${s.room ? ` · ${s.room}` : ""}</span>` : ""}</li>`)}</ul></div>` : ""}
+    ${prev.length ? html`<div class="sec"><h3 class="sec-t">Met before</h3><ul>${prev.map((m) => html`<li>${fmtDay(m.at)}${m.summary ? html` · ${m.summary}` : ""}</li>`)}</ul></div>` : ""}
     ${pending ? "" : retrievedList(card && card.retrieved)}
     ${actions}
   </article>`;
@@ -213,8 +222,16 @@ function nowPersonId() {
   return state.encounter && state.encounter.status === "confirmed" && state.encounter.person ? state.encounter.person.id : null;
 }
 
+// Candidate line: title, company in bold, location; read as one sentence by VoiceOver
+function candSub(c) {
+  const title = c.title || c.headline || "";
+  const co = c.company && !title.includes(c.company) ? c.company : "";
+  return html`${title}${co ? html`${title ? " · " : ""}<b>${co}</b>` : ""}${c.location ? html`<br>${c.location}` : ""}`;
+}
+
 function renderNow() {
   const el = $("now-encounter");
+  document.body.classList.toggle("convo", !!nowPersonId() && !state.capturing);
   if (state.capturing) {
     setHTML(el, html`<div class="enc-status">
       ${state.capturing.thumb ? html`<img class="thumb" src="${state.capturing.thumb}" alt="">` : ""}
@@ -243,17 +260,20 @@ function renderNow() {
     return;
   }
   if (enc.status === "needs_pick") {
-    setHTML(el, html`${read}<h2>Who is this?</h2>
-      <div class="cand-list">${(enc.candidates || []).map((c) => html`
-        <button class="cand" data-action="pick" data-enc="${enc.id}" data-person="${c.id}">
+    const cands = enc.candidates || [];
+    setHTML(el, html`${read}<h2 class="q">Who is this?</h2>
+      <p class="q-help">${cands.length === 1 ? "One possible match." : `${cands.length} people could be this.`} Pick the right one; no card shows until you do.</p>
+      <div class="cand-list">${cands.map((c) => html`
+        <button class="cand" data-action="pick" data-enc="${enc.id}" data-person="${c.id}"
+          aria-label="${[c.name, c.title || c.headline, c.company, c.location, c.why].filter(Boolean).join(", ")}">
           ${avatar(c)}
-          <span class="meta"><div class="name">${c.name}</div><div class="sub">${roleLine(c) || c.headline || ""}</div>${c.why ? html`<div class="why">${c.why}</div>` : ""}</span>
-          <span class="score">${Math.round((c.score || 0) * 100)}%</span>
+          <span class="meta"><div class="name">${c.name}</div><div class="sub">${candSub(c)}</div>${c.why ? html`<div class="why">${c.why}</div>` : ""}</span>
+          ${icon("chev", "icon chev")}
         </button>`)}
       </div>
-      <div class="row" style="margin-top:8px">
+      <div class="row pick-actions">
         <button class="btn ghost grow" data-action="none-of-these" data-enc="${enc.id}">None of these</button>
-        <button class="btn ghost grow" data-action="toggle-lookup">Look up</button>
+        <button class="btn ghost grow" data-action="toggle-lookup">Search by name</button>
       </div>`);
     return;
   }
@@ -261,7 +281,7 @@ function renderNow() {
     setHTML(el, html`${read}<div class="panel">
       <div>Couldn't find a match${state.read && state.read.name ? html` for <strong>${state.read.name}</strong>` : ""}.</div>
       <div class="row">
-        <button class="btn grow" data-action="lookup-prefill">Look up</button>
+        <button class="btn grow" data-action="lookup-prefill">Search by name</button>
         <button class="btn ghost grow" data-action="add-note" data-enc="${enc.id}" data-name="">Add note</button>
         <button class="btn ghost grow" data-action="end" data-enc="${enc.id}">End</button>
       </div></div>`);
@@ -337,8 +357,11 @@ function handleResolution(res, { fromLive = false } = {}) {
   if (fromLive || state.tab !== "now") {
     const enc = res.encounter;
     const who = enc.person ? enc.person.name : (res.read && res.read.name) || "someone new";
-    const msg = enc.status === "needs_pick" ? `Heard a name: ${who}. Pick the right person.` : `Talking to ${who}?`;
-    toast(msg, { action: state.tab !== "now" ? { label: "Open", fn: () => showTab("now") } : null });
+    const open = state.tab !== "now" ? [{ label: "Open", fn: () => showTab("now") }] : [];
+    if (enc.status === "needs_pick") toast(`Heard a name: ${who}. Pick the right person.`, { actions: open });
+    else if (enc.status === "confirmed" && enc.person) {
+      toast(`Talking to ${who}?`, { timeout: 9000, actions: [...open, { label: "Not them", fn: () => rejectPerson(enc.id, enc.person.id, who) }] });
+    }
   }
 }
 
@@ -421,7 +444,7 @@ function openNote(bind) {
   setPanel("note");
   const ta = $("note-text");
   ta.focus({ preventScroll: true });
-  ta.scrollIntoView({ block: "center", behavior: "smooth" });
+  ta.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
 
 const noteText = $("note-text");
@@ -589,11 +612,12 @@ function renderCardView() {
 
 // ---------------------------------------------------------------- PEOPLE
 
-function personItem(p, extra = "", encId = "") {
+function personItem(p, extra = "", encId = "", { speakerPill = true } = {}) {
   return html`<button class="item" data-action="open-person" data-person="${p.id}" data-enc="${encId}">
     ${avatar(p)}
-    <span class="meta"><div class="name">${p.name}${p.is_speaker ? html` <span class="pill speaker">Speaker</span>` : ""}</div>
+    <span class="meta"><div class="name">${p.name}${speakerPill && p.is_speaker ? html` <span class="pill speaker">Speaker</span>` : ""}</div>
     <div class="sub">${roleLine(p)}</div>${extra}</span>
+    ${icon("chev", "icon chev")}
   </button>`;
 }
 
@@ -617,8 +641,8 @@ async function loadPeople() {
     setHTML("people-shortlist", rows.length
       ? html`<div class="list">${rows.map((r) => personItem(r.person, html`
           ${r.why ? html`<div class="why">${r.why}</div>` : ""}
-          ${(r.sessions || []).slice(0, 2).map((s) => html`<div class="sess">${s.title}${s.start ? ` · ${fmtDayTime(s.start)}` : ""}${s.room ? ` · ${s.room}` : ""}</div>`)}`))}</div>`
-      : html`<div class="empty">No shortlist yet. Import the event and set your goals.</div>`);
+          ${(r.sessions || []).slice(0, 2).map((s) => html`<div class="sess">${s.title}${s.start ? ` · ${fmtDayTime(s.start)}` : ""}${s.room ? ` · ${s.room}` : ""}</div>`)}`, "", { speakerPill: false }))}</div>`
+      : html`<div class="empty">No shortlist yet. It's built the night before, once the speakers are loaded and your goals are set.</div>`);
   } else {
     setHTML("people-shortlist", html`<div class="empty error">${errText(short.reason)}</div>`);
   }
@@ -630,7 +654,7 @@ const runSearch = debounce(async (q) => {
     const rows = await api(`/api/people?q=${encodeURIComponent(q)}&limit=20`);
     if ($("people-search").value.trim() !== q) return;
     setHTML("people-results", rows && rows.length
-      ? html`<div class="list" style="margin-bottom:8px">${rows.map((p) => personItem(p))}</div>`
+      ? html`<div class="list results">${rows.map((p) => personItem(p))}</div>`
       : html`<div class="empty">No matches.</div>`);
   } catch (e) {
     setHTML("people-results", html`<div class="empty error">${errText(e)}</div>`);
@@ -644,11 +668,12 @@ const recapDate = $("recap-date");
 recapDate.value = localDateStr();
 recapDate.addEventListener("change", () => loadRecap());
 
-function actionItem(a) {
+function actionItem(a, who = "") {
   return html`<div class="ai ${a.status === "done" ? "done" : ""}">
     <label>
       <input type="checkbox" data-action="ai-toggle" data-id="${a.id}" ${a.status === "done" ? raw("checked") : ""}>
       <span><span class="ai-text">${a.text}</span><span class="owner ${a.owner}">${a.owner === "me" ? "You" : a.owner === "them" ? "Them" : "?"}</span>
+      ${who ? html` <span class="who">· ${who}</span>` : ""}
       ${a.due ? html` <span class="src">due ${fmtDay(a.due) || a.due}</span>` : ""}
       ${a.quote ? html`<div class="quote">“${a.quote}”</div>` : ""}</span>
     </label>
@@ -671,9 +696,10 @@ function renderRecap() {
   const d = recapData || { encounters: [], open_items: [] };
   const open = d.open_items || [];
   const encs = d.encounters || [];
+  const names = Object.fromEntries(encs.filter((r) => r.encounter && r.encounter.person).map((r) => [r.encounter.person.id, r.encounter.person.name]));
   setHTML("recap-body", html`
-    <h2>Open action items (${open.length})</h2>
-    ${open.length ? html`<div class="panel">${open.map(actionItem)}</div>` : html`<div class="empty">Nothing open.</div>`}
+    <h2>Open action items (${open.filter((a) => a.status !== "done").length})</h2>
+    ${open.length ? html`<div class="panel">${open.map((a) => actionItem(a, names[a.person_id] || ""))}</div>` : html`<div class="empty">Nothing open.</div>`}
     <h2>Conversations (${encs.length})</h2>
     ${encs.length ? encs.map((r, i) => {
       const enc = r.encounter || {};
@@ -684,12 +710,14 @@ function renderRecap() {
           <div class="time">${fmtTime(enc.at)}${enc.place ? ` · ${enc.place}` : ""}${p ? ` · ${roleLine(p)}` : ""}</div></div>
           ${p ? html`<button class="btn small-btn" data-action="open-person" data-person="${p.id}">Card</button>` : ""}
         </div>
-        ${r.summary ? html`<p>${r.summary}</p>` : html`<p class="muted small">No summary yet. Run recap.</p>`}
-        ${r.notes && r.notes.length ? html`<div class="sec"><div class="sec-t">Your notes</div><ul class="notes">${r.notes.map((n) => html`<li>${n.text} <span class="src">${fmtTime(n.at)}</span></li>`)}</ul></div>` : ""}
-        ${r.action_items && r.action_items.length ? html`<div class="sec"><div class="sec-t">Action items</div>${r.action_items.map(actionItem)}</div>` : ""}
-        ${r.follow_up ? html`<div class="sec"><div class="sec-t">Follow-up draft (${r.follow_up.channel === "linkedin" ? "LinkedIn" : "email"})</div>
+        ${r.summary ? html`<p>${r.summary}</p>` : html`<p class="muted small">${r.recapped ? "Nothing was recorded for this conversation." : "No summary yet. Tap Run recap."}</p>`}
+        ${r.notes && r.notes.length ? html`<div class="sec"><h3 class="sec-t">Your notes</h3><ul class="notes">${r.notes.map((n) => html`<li>${n.text} <span class="src">${fmtTime(n.at)}</span></li>`)}</ul></div>` : ""}
+        ${r.follow_up ? html`<div class="sec"><h3 class="sec-t">Follow-up draft (${r.follow_up.channel === "linkedin" ? "LinkedIn" : "email"})</h3>
           <div class="draft" id="draft-${i}">${r.follow_up.text}</div>
-          <button class="btn block" style="margin-top:8px" data-action="copy-draft" data-idx="${i}">Copy</button></div>` : ""}
+          <div class="row draft-actions">
+            <button class="btn grow" data-action="copy-draft" data-idx="${i}">Copy</button>
+            ${navigator.share ? html`<button class="btn grow" data-action="share-draft" data-idx="${i}">Share</button>` : ""}
+          </div></div>` : ""}
       </div>`;
     }) : html`<div class="empty">No conversations on this day.</div>`}
   `);
@@ -830,6 +858,20 @@ $("token-form").addEventListener("submit", async (e) => {
   }
 });
 
+// "Not them": detach the person, with an undo that confirms them again
+async function rejectPerson(eid, pid, name) {
+  const r = await api(`/api/encounters/${encodeURIComponent(eid)}/reject`, { method: "POST", body: { person_id: pid } });
+  state.nowCard = null;
+  handleResolution({ encounter: r, read: state.read });
+  if (state.tab === "card") showTab("now");
+  toast(`Marked as not ${name || "them"}.`, { kind: "ok", timeout: 8000, action: { label: "Undo", fn: async () => {
+    try {
+      const back = await api(`/api/encounters/${encodeURIComponent(eid)}/confirm`, { method: "POST", body: { person_id: pid } });
+      handleResolution({ encounter: back, read: state.read });
+    } catch (err) { toast(errText(err), { kind: "error" }); }
+  } } });
+}
+
 // ---------------------------------------------------------------- global actions
 
 document.addEventListener("click", async (e) => {
@@ -890,24 +932,32 @@ document.addEventListener("click", async (e) => {
     }
     case "not-them":
       el.disabled = true;
-      try {
-        const r = await api(`/api/encounters/${encodeURIComponent(enc)}/reject`, { method: "POST", body: { person_id: person } });
-        state.nowCard = null;
-        handleResolution({ encounter: r, read: state.read });
-        if (state.tab === "card") showTab("now");
-      } catch (err) { el.disabled = false; if (!(err instanceof AuthError)) toast(errText(err), { kind: "error" }); }
+      try { await rejectPerson(enc, person, el.dataset.name); }
+      catch (err) { el.disabled = false; if (!(err instanceof AuthError)) toast(errText(err), { kind: "error" }); }
       break;
-    case "end":
+    case "end": {
       el.disabled = true;
+      const name = el.dataset.name || "them";
+      const read = state.read;
       try {
         await api(`/api/encounters/${encodeURIComponent(enc)}/end`, { method: "POST" });
         state.encounter = null; state.nowCard = null; state.read = null;
         if (state.noteBind && state.noteBind.encounterId === enc) state.noteBind = null;
         renderNow(); renderNoteTarget();
         if (state.tab === "card") { state.cardView.encounterId = null; renderCardView(); }
-        toast("Conversation ended. Dictate a quick note while it's fresh?", { kind: "ok", action: { label: "Note", fn: () => { showTab("now"); openNote({ encounterId: enc, name: "" }); } } });
+        toast(`Ended your conversation with ${name}.`, { kind: "ok", timeout: 9000, actions: [
+          { label: "Undo", fn: async () => {
+            try {
+              state.encounter = await api(`/api/encounters/${encodeURIComponent(enc)}/reopen`, { method: "POST" });
+              state.read = read;
+              loadNowCard(); renderNow(); renderNoteTarget();
+            } catch (err) { toast(errText(err), { kind: "error" }); }
+          } },
+          { label: "Note", fn: () => { showTab("now"); openNote({ encounterId: enc, name }); } },
+        ] });
       } catch (err) { el.disabled = false; if (!(err instanceof AuthError)) toast(errText(err), { kind: "error" }); }
       break;
+    }
     case "open-person":
       openCard(person, enc || null);
       break;
@@ -944,6 +994,11 @@ document.addEventListener("click", async (e) => {
       }
       break;
     }
+    case "share-draft": {
+      const d = $(`draft-${el.dataset.idx}`);
+      try { await navigator.share({ text: d ? d.textContent : "" }); } catch {}
+      break;
+    }
     case "push-enable":
       enablePush();
       break;
@@ -970,7 +1025,6 @@ document.addEventListener("change", async (e) => {
         const upd = (a) => { if (a.id === id) a.status = status; };
         (recapData.open_items || []).forEach(upd);
         (recapData.encounters || []).forEach((r) => (r.action_items || []).forEach(upd));
-        if (status === "done") recapData.open_items = (recapData.open_items || []).filter((a) => a.id !== id);
         renderRecap();
       }
     } catch (err) {
@@ -986,12 +1040,17 @@ let es = null;
 let sseBackoff = 1000;
 let sseTimer = null;
 
+function setConn() {
+  const d = $("sse-dot");
+  const online = navigator.onLine;
+  d.classList.toggle("ok", online && state.sseOk);
+  d.classList.toggle("bad", !online || !state.sseOk);
+  d.textContent = !online ? "Offline" : state.sseOk ? "Live" : "Reconnecting…";
+}
+
 function setSseDot(ok) {
   state.sseOk = ok;
-  const d = $("sse-dot");
-  d.classList.toggle("ok", ok);
-  d.classList.toggle("bad", !ok);
-  d.title = ok ? "Live updates on" : "Live updates reconnecting";
+  setConn();
 }
 
 function closeSSE() {
@@ -1026,6 +1085,10 @@ function connectSSE() {
   on("resolution", (res) => handleResolution(res, { fromLive: true }));
   on("card", (d) => { if (d && d.card) applyCard(d.person_id, d.card, d.encounter_id); });
   on("nudge", (d) => {
+    if (state.encounter && d.encounter_id === state.encounter.id) {
+      state.encounter.nudges = [...(state.encounter.nudges || []), { text: d.text, kind: d.kind }];
+      renderNow();
+    }
     toast(d.text, { kind: "nudge", timeout: 9000, iconName: d.kind || "topic" });
     if (navigator.vibrate) navigator.vibrate(80);
   });
@@ -1067,7 +1130,12 @@ function fmtDates(range) {
     : `${md(a, { month: "short", day: "numeric" })} – ${md(b, { month: "short", day: "numeric" })}`;
 }
 
-function updateOnline() { $("offline-banner").hidden = navigator.onLine; }
+function updateOnline() {
+  $("offline-banner").hidden = navigator.onLine;
+  document.body.classList.toggle("offline", !navigator.onLine);
+  setConn();
+  if (state.demoListen || listener.active) $("listen-status").textContent = navigator.onLine ? "Listening" : "Offline, not transcribing";
+}
 window.addEventListener("online", () => { updateOnline(); if (state.me) { connectSSE(); loadCurrentEncounter(); } else loadAll(); });
 window.addEventListener("offline", updateOnline);
 

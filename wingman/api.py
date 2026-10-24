@@ -116,7 +116,7 @@ async def capture_photo(file: UploadFile = File(...)):
     data = read.model_dump() if read else {"name": None, "company": None, "title": None, "raw_text": None}
     if links and not data.get("raw_text"):
         data["raw_text"] = links[0]
-    return await resolver.resolve({k: data.get(k) for k in ("name", "company", "title", "raw_text")})
+    return await resolver.resolve({k: data.get(k) for k in ("name", "company", "title", "raw_text")}, via="badge")
 
 
 class Link(BaseModel):
@@ -139,7 +139,7 @@ class NameIn(BaseModel):
 @app.post("/api/capture/name", dependencies=A)
 async def capture_name(body: NameIn):
     return await resolver.resolve({"name": body.name.strip(), "company": (body.company or "").strip() or None,
-                                   "title": None, "raw_text": None})
+                                   "title": None, "raw_text": None}, via="lookup")
 
 
 class NoteIn(BaseModel):
@@ -163,7 +163,7 @@ async def capture_note(body: NoteIn):
                 partner = (await graph.get_person(e["person_id"]) or {}).get("name")
         parsed = await llm.parse_note(text, partner)
         if parsed and parsed.new_person:
-            resolution = await resolver.resolve(parsed.new_person.model_dump() | {"raw_text": None})
+            resolution = await resolver.resolve(parsed.new_person.model_dump() | {"raw_text": None}, via="note")
             eid = resolution["encounter"]["id"]
         elif cur:
             eid = cur["id"]
@@ -196,6 +196,15 @@ async def encounter_end(eid: str):
     if not await graph.get_encounter_raw(eid):
         raise HTTPException(404, "unknown encounter")
     await graph.update_encounter(eid, {"ended_at": graph.now_ms()})
+    return await resolver.encounter_view(eid)
+
+
+@app.post("/api/encounters/{eid}/reopen", dependencies=A)
+async def encounter_reopen(eid: str):
+    """Undo for End."""
+    if not await graph.get_encounter_raw(eid):
+        raise HTTPException(404, "unknown encounter")
+    await graph.q("MATCH (e:Encounter {id:$id}) REMOVE e.ended_at", {"id": eid})
     return await resolver.encounter_view(eid)
 
 
