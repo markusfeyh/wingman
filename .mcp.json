@@ -2,7 +2,7 @@
   "mcpServers": {
     "falkordb": {
       "command": "npx",
-      "args": ["-y", "@falkordb/mcpserver@latest"],
+      "args": ["-y", "@falkordb/mcpserver@1.3.0"],
       "env": { "FALKORDB_HOST": "localhost", "FALKORDB_PORT": "6379", "FALKORDB_USERNAME": "", "FALKORDB_PASSWORD": "" }
     },
     "brightdata": {
